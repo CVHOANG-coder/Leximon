@@ -1,0 +1,51 @@
+name: leximon
+description: "Leximon - Learn English & collect mystical creatures across islands."
+publish_to: "none"
+
+version: 0.1.0+1
+
+environment:
+    sdk: ^3.11.5
+
+dependencies:
+    flutter:
+        sdk: flutter
+    flutter_localizations:
+        sdk: flutter
+
+    cupertino_icons: ^1.0.8
+
+    # Game engine
+    flame: ^1.18.0
+    flame_audio: ^2.10.0
+
+    # State management
+    flutter_riverpod: ^2.5.1
+
+    # Routing
+    go_router: ^14.6.2
+
+    # Models
+    equatable: ^2.0.5
+
+    # UI helpers
+    flutter_screenutil: ^5.9.3
+    google_fonts: ^6.2.1
+
+    # Local storage
+    shared_preferences: ^2.3.3
+
+dev_dependencies:
+    flutter_test:
+        sdk: flutter
+    flutter_lints: ^6.0.0
+
+flutter:
+    uses-material-design: true
+
+    assets:
+        - assets/images/
+        - assets/sprites/
+        - assets/tiles/
+        - assets/audio/
+        - assets/lotties/
