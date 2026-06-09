@@ -45,7 +45,11 @@ flutter:
 
     assets:
         - assets/images/
-        - assets/sprites/
-        - assets/tiles/
-        - assets/audio/
-        - assets/lotties/
+        - assets/images/homeScreen/
+        - assets/images/homeScreen/islands/
+        - assets/images/homeScreen/clouds/
+        - assets/images/homeScreen/decor_item/
+        - assets/images/homeScreen/decor_item/shark_shadow/
+        - assets/images/checkpoint/
+        - assets/images/checkpoint/checkpointCurrent/
+        - assets/images/learningIslandScreen/
