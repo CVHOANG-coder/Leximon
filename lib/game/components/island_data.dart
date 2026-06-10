@@ -22,21 +22,8 @@ class IslandData {
         completed: completed ?? this.completed,
       );
 
-  /// Default island roster — index 0 is at the bottom of the map.
+  /// Default island roster — index 0 is at the bottom of the map (Đảo 1).
   static const List<IslandData> defaults = [
-    IslandData(
-      id: 'home',
-      name: 'Home Village',
-      assetName: 'Home_Village.png',
-      unlocked: true,
-      completed: true,
-    ),
-    IslandData(
-      id: 'nature',
-      name: 'Nature Isle',
-      assetName: 'nature_island.png',
-      unlocked: true,
-    ),
     IslandData(
       id: 'learning',
       name: 'Learning Island',
@@ -44,19 +31,19 @@ class IslandData {
       unlocked: true,
     ),
     IslandData(
-      id: 'life',
-      name: 'Life Island',
-      assetName: 'life_island.png',
+      id: 'home',
+      name: 'Home Village',
+      assetName: 'Home_Village.png',
     ),
     IslandData(
-      id: 'adventure',
-      name: 'Adventure Isle',
-      assetName: 'adventure_island.png',
+      id: 'ocean_kingdom',
+      name: 'Ocean Kingdom',
+      assetName: 'Ocean_Kingdom.png',
     ),
     IslandData(
-      id: 'festival',
-      name: 'Festival Island',
-      assetName: 'festival_island.png',
+      id: 'nature',
+      name: 'Nature Island',
+      assetName: 'nature_island.png',
     ),
     IslandData(
       id: 'city',
@@ -64,14 +51,24 @@ class IslandData {
       assetName: 'City_Island.png',
     ),
     IslandData(
+      id: 'adventure',
+      name: 'Adventure Island',
+      assetName: 'adventure_island.png',
+    ),
+    IslandData(
       id: 'entertainment',
-      name: 'Entertainment',
+      name: 'Entertainment Island',
       assetName: 'Entertainment_Island.png',
     ),
     IslandData(
-      id: 'ocean_kingdom',
-      name: 'Ocean Kingdom',
-      assetName: 'Ocean_Kingdom.png',
+      id: 'life',
+      name: 'Life Island',
+      assetName: 'life_island.png',
+    ),
+    IslandData(
+      id: 'festival',
+      name: 'Festival Island',
+      assetName: 'festival_island.png',
     ),
     IslandData(
       id: 'master',

@@ -33,7 +33,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.lesson,
       builder: (_, state) => LessonScreen(
-        topicId: state.pathParameters['topicId'] ?? 'animals',
+        topicId: int.tryParse(state.pathParameters['topicId'] ?? '') ?? 1,
       ),
     ),
     GoRoute(

@@ -18,11 +18,19 @@ import 'components/world_path.dart';
 class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
   WorldMapGame({
     List<IslandData>? islands,
-    int currentIslandIndex = 1,
+    int? currentIslandIndex,
     this.onIslandSelected,
     this.onIslandTapped,
   })  : _islands = islands ?? IslandData.defaults,
-        _currentIdx = currentIslandIndex;
+        _currentIdx = currentIslandIndex ??
+            _lastUnlockedIndex(islands ?? IslandData.defaults);
+
+  /// Index of the most recently unlocked island (the furthest one the
+  /// player can be on). Falls back to 0 if nothing is unlocked.
+  static int _lastUnlockedIndex(List<IslandData> islands) {
+    final idx = islands.lastIndexWhere((i) => i.unlocked);
+    return idx < 0 ? 0 : idx;
+  }
 
   final List<IslandData> _islands;
   int _currentIdx;
@@ -83,6 +91,7 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
     await _world.add(SeaDecorManager(
       worldSize: Vector2(size.x, _worldHeight),
       random: math.Random(42),
+      islandPositions: List.generate(_islands.length, _islandPos),
     ));
 
     // priority 10 — path (above bg & decor, below islands/boat)
@@ -113,6 +122,9 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
     // Fog clouds over islands far ahead of the player
     await _addFogClouds();
 
+    // priority 50 — lock icons above clouds
+    await _addLockIcons();
+
     // Scroll to current island
     _scrollTo(_currentIdx, animate: false);
   }
@@ -142,6 +154,25 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
           priority: 40,
         ));
       }
+    }
+  }
+
+  Future<void> _addLockIcons() async {
+    Sprite? lockSprite;
+    try {
+      lockSprite = await Sprite.load('homeScreen/lock_chain.png');
+    } catch (_) {
+      return;
+    }
+    for (var i = 0; i < _islands.length; i++) {
+      if (_islands[i].unlocked) continue;
+      await _world.add(SpriteComponent(
+        sprite: lockSprite,
+        position: _islandPos(i),
+        size: Vector2(52, 62),
+        anchor: Anchor.center,
+        priority: 50,
+      ));
     }
   }
 
@@ -191,10 +222,8 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
       return;
     }
 
-    // Only allow traveling to directly adjacent (next) island if locked
-    // or to any unlocked island
-    final isAdjacent = idx == _currentIdx + 1;
-    if (!target.unlocked && !isAdjacent) return;
+    // The boat can only travel to islands that are already unlocked.
+    if (!target.unlocked) return;
 
     // Build path from current island to target (can be multiple hops)
     final step = idx > _currentIdx ? 1 : -1;

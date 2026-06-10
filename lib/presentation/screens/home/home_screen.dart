@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _game = WorldMapGame(
       islands: IslandData.defaults,
-      currentIslandIndex: 2, // Learning Island là current
+      // currentIslandIndex omitted — defaults to the last unlocked island
       onIslandTapped: (island) {
         if (island.id == 'learning') {
           WidgetsBinding.instance.addPostFrameCallback((_) {

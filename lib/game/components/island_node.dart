@@ -23,9 +23,8 @@ class IslandNodeComponent extends SpriteComponent {
 
   late Vector2 _basePos;
   double _bobTime = 0;
-  Sprite? _lockSprite;
 
-  static const _nodeSize = 180.0;
+  static const _nodeSize = 240.0;
 
   @override
   Future<void> onLoad() async {
@@ -37,26 +36,15 @@ class IslandNodeComponent extends SpriteComponent {
     size = Vector2(_nodeSize, _nodeSize * 0.85);
     _basePos = position.clone();
 
-    if (!data.unlocked) {
-      try {
-        _lockSprite = await Sprite.load('homeScreen/lock_chain.png');
-      } catch (_) {}
-    }
-
-    // Island name label
+    // Island name label — animated, anchored below the island sprite.
+    // Child coordinates are relative to the parent's top-left corner.
     await add(
-      TextComponent(
+      _IslandLabel(
         text: data.name,
-        textRenderer: TextPaint(
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
-          ),
-        ),
-        anchor: Anchor.topCenter,
-        position: Vector2(0, size.y / 2 + (isCurrent ? 48 : 8)),
+        // Sprite has transparent padding at the bottom, so pull the label
+        // up above size.y to sit close to the visible island edge.
+        labelPosition: Vector2(size.x / 2, size.y - 24),
+        isCurrent: isCurrent,
       ),
     );
   }
@@ -83,34 +71,19 @@ class IslandNodeComponent extends SpriteComponent {
 
     if (!data.unlocked) canvas.restore();
 
-    // Lock icon: centered horizontally, top-center of island
-    if (!data.unlocked) {
-      const lockW = 52.0;
-      const lockH = 62.0;
-      _lockSprite?.render(
-        canvas,
-        position: Vector2(-lockW / 2, -hh - lockH + 14),
-        size: Vector2(lockW, lockH),
-      );
-    }
-
     // Play button below current island
     if (isCurrent) {
-      _drawPlayButton(canvas, Offset(0, hh + 24));
+      _drawPlayButton(canvas, Offset(size.x / 2, hh + 24));
     }
 
     // Green checkmark for completed past islands
     if (data.completed && !isCurrent) {
-      _drawCheckmark(canvas, Offset(0, hh + 8));
+      _drawCheckmark(canvas, Offset(size.x / 2, hh + 8));
     }
   }
 
   void _drawPlayButton(Canvas canvas, Offset center) {
-    canvas.drawCircle(
-      center,
-      22,
-      Paint()..color = const Color(0xFF3CB54A),
-    );
+    canvas.drawCircle(center, 22, Paint()..color = const Color(0xFF3CB54A));
     canvas.drawCircle(
       center,
       22,
@@ -145,4 +118,59 @@ class IslandNodeComponent extends SpriteComponent {
 
   bool containsWorldPoint(Vector2 point) =>
       (point - position).length < (_nodeSize * 0.55);
+}
+
+class _IslandLabel extends TextComponent {
+  _IslandLabel({
+    required String text,
+    required Vector2 labelPosition,
+    required this.isCurrent,
+  }) : super(
+         text: text,
+         anchor: Anchor.topCenter,
+         position: labelPosition,
+         textRenderer: TextPaint(
+           style: TextStyle(
+             color: Colors.white,
+             fontSize: isCurrent ? 15 : 13,
+             fontWeight: FontWeight.w800,
+             letterSpacing: 0.5,
+             shadows: const [
+               Shadow(
+                 color: Color(0xCC000000),
+                 blurRadius: 8,
+                 offset: Offset(0, 2),
+               ),
+               Shadow(color: Color(0x88000000), blurRadius: 16),
+             ],
+           ),
+         ),
+       );
+
+  final bool isCurrent;
+  double _t = 0;
+
+  @override
+  void update(double dt) {
+    _t += dt;
+    if (isCurrent) {
+      final alpha = (0.75 + 0.25 * math.sin(_t * 2.5)).clamp(0.0, 1.0);
+      textRenderer = TextPaint(
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: alpha),
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+          shadows: const [
+            Shadow(
+              color: Color(0xCC000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+            Shadow(color: Color(0x88000000), blurRadius: 16),
+          ],
+        ),
+      );
+    }
+  }
 }

@@ -1,13 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 enum CheckpointState { complete, current, uncheck }
 
 class CheckpointModel {
-  CheckpointModel({required this.id, required this.label, required this.state});
+  CheckpointModel({
+    required this.id,
+    required this.label,
+    required this.topicId,
+    required this.state,
+  });
+
   final int id;
   final String label;
+
+  /// Id of the vocabulary topic in lib/data/sample/topics.json.
+  final int topicId;
   CheckpointState state;
 }
 
@@ -20,11 +30,23 @@ class LearningIslandScreen extends StatefulWidget {
 
 class _LearningIslandScreenState extends State<LearningIslandScreen>
     with TickerProviderStateMixin {
+  // Vocabulary topics of Learning Island, in play order:
+  // (label, topic id in lib/data/sample/topics.json).
+  static const List<(String, int)> _topics = [
+    ('Đồ dùng học tập', 1),
+    ('Trường học', 39),
+    ('Học tập', 49),
+    ('Giáo dục', 44),
+    ('Máy tính', 14),
+    ('Số', 5),
+  ];
+
   final List<CheckpointModel> _checkpoints = List.generate(
-    8,
+    _topics.length,
     (i) => CheckpointModel(
       id: i,
-      label: 'Lesson ${i + 1}',
+      label: _topics[i].$1,
+      topicId: _topics[i].$2,
       state: i == 0 ? CheckpointState.current : CheckpointState.uncheck,
     ),
   );
@@ -33,7 +55,9 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
   int? _unlockingIdx;
 
   late final AnimationController _frameCtrl;
-  int _currentFrame = 0;
+  // Vào màn hình thì checkpoint current đứng yên ở frame cuối;
+  // animation chỉ chạy khi mở khóa checkpoint mới (_onCheckpointTap).
+  int _currentFrame = 4;
 
   late final AnimationController _bobCtrl;
 
@@ -44,7 +68,7 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
     _frameCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..forward();
+    );
     _frameCtrl.addListener(() {
       final frame = (_frameCtrl.value * 5).floor().clamp(0, 4);
       if (frame != _currentFrame) setState(() => _currentFrame = frame);
@@ -79,6 +103,13 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
       _checkpoints.indexWhere((c) => c.state == CheckpointState.current);
 
   void _onCheckpointTap(int tappedIdx) {
+    // Checkpoint đã mở (đang học hoặc đã xong) → vào màn học từ vựng
+    final tapped = _checkpoints[tappedIdx];
+    if (tapped.state != CheckpointState.uncheck) {
+      context.push('/lesson/${tapped.topicId}');
+      return;
+    }
+
     final curIdx = _currentIdx;
     if (tappedIdx != curIdx + 1) return;
     if (_unlockCtrl != null && _unlockCtrl!.isAnimating) return;
@@ -103,17 +134,39 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
     setState(() {});
   }
 
-  // Offsets from island center — calibrated from screenshot pixel positions
-  static const List<Offset> _cpOffsets = [
-    Offset(  15,   78), // Lesson 1 — đầu path trên đảo (sát dock)
-    Offset( -29,   69), // Lesson 2 — flag/pole area
-    Offset( -76,   11), // Lesson 3 — near magnifying glass
-    Offset( -37,  -22), // Lesson 4 — center below school
-    Offset(  45,  -15), // Lesson 5 — trên đoạn path phải trường học
-    Offset(  41,  -94), // Lesson 6 — right (computer desk)
-    Offset( -18, -140), // Lesson 7 — upper-center (big tree)
-    Offset(  70, -120), // Lesson 8 — sát chân stairs 123, trên path
+  // Waypoints from island center, tracing the sandy walkway of the island
+  // (dock at bottom → up-left past the magnifying glass → below the school
+  // → right side → up along the right edge to the "123" corner).
+  // Converted from learning_main_island.png pixel coords (1254×1254) using:
+  // dx = xPx * 380/1254 - 190, dy = yPx * 380/1254 - 230 (image drawn at
+  // width 380, offset cx-190 / cy-230).
+  // The dashed path is drawn through ALL of these; checkpoints sit on a
+  // subset of them (see _cpIndices) so they spread evenly along the walkway.
+  static const List<Offset> _pathOffsets = [
+    Offset(  18,   97), // Đồ dùng học tập — đầu lối đi, cạnh dock
+    Offset( -12,   78),
+    Offset( -36,   57), // Trường học — đoạn dốc lên bên trái
+    Offset( -54,   36),
+    Offset( -69,   21),
+    Offset( -78,    8), // Học tập — khúc cua trái, cạnh kính lúp
+    Offset( -60,   -5),
+    Offset( -45,  -13),
+    Offset( -30,  -19),
+    Offset( -11,  -22),
+    Offset(  10,  -26),
+    Offset(  30,  -32),
+    Offset(  50,  -43), // Giáo dục — bên phải, dưới bàn máy tính
+    Offset(  45,  -70),
+    Offset(  30,  -95),
+    Offset(   5, -115),
+    Offset( -13, -131), // Máy tính — khúc cua giữa, đỉnh chữ S
+    Offset(  15, -128),
+    Offset(  48, -122),
+    Offset(  74, -112), // Số — vòng tròn cờ, góc "123"
   ];
+
+  // Indices into _pathOffsets where the 6 checkpoints sit.
+  static const List<int> _cpIndices = [0, 2, 5, 12, 16, 19];
 
   @override
   Widget build(BuildContext context) {
@@ -126,8 +179,9 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
           final cx = w / 2;
           final cy = h * 0.54;
 
-          final cpPositions =
-              _cpOffsets.map((o) => Offset(cx + o.dx, cy + o.dy)).toList();
+          final pathPositions =
+              _pathOffsets.map((o) => Offset(cx + o.dx, cy + o.dy)).toList();
+          final cpPositions = [for (final i in _cpIndices) pathPositions[i]];
 
           return Stack(
             fit: StackFit.expand,
@@ -164,12 +218,13 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
                 ),
               ),
 
-              // Dashed path between checkpoints
+              // Dashed path along the island walkway, through all waypoints
               Positioned.fill(
                 child: CustomPaint(
                   painter: _PathPainter(
-                    positions: cpPositions,
+                    positions: pathPositions,
                     checkpoints: List.unmodifiable(_checkpoints),
+                    cpIndices: _cpIndices,
                   ),
                 ),
               ),
@@ -311,15 +366,29 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
 // ─── Dashed path painter ──────────────────────────────────────────────────────
 
 class _PathPainter extends CustomPainter {
-  const _PathPainter({required this.positions, required this.checkpoints});
+  const _PathPainter({
+    required this.positions,
+    required this.checkpoints,
+    required this.cpIndices,
+  });
+
+  /// All walkway waypoints (checkpoints + via-points between them).
   final List<Offset> positions;
   final List<CheckpointModel> checkpoints;
+
+  /// Indices into [positions] where each checkpoint sits.
+  final List<int> cpIndices;
 
   @override
   void paint(Canvas canvas, Size size) {
     for (var i = 0; i < positions.length - 1; i++) {
-      final done = checkpoints[i].state == CheckpointState.complete &&
-          checkpoints[i + 1].state != CheckpointState.uncheck;
+      // Find the checkpoint interval this waypoint segment belongs to.
+      var k = 0;
+      while (k + 1 < cpIndices.length - 1 && cpIndices[k + 1] <= i) {
+        k++;
+      }
+      final done = checkpoints[k].state == CheckpointState.complete &&
+          checkpoints[k + 1].state != CheckpointState.uncheck;
       _drawDashedCurve(canvas, i, done);
     }
   }
@@ -445,19 +514,46 @@ class _CheckpointContent extends StatelessWidget {
             child: img,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
           decoration: BoxDecoration(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: switch (model.state) {
+                CheckpointState.complete =>
+                  const [Color(0xFF7EDD66), Color(0xFF2F9E3F)],
+                CheckpointState.current =>
+                  const [Color(0xFFFFCE3F), Color(0xFFF58B1F)],
+                CheckpointState.uncheck =>
+                  const [Color(0xFF9BB2C6), Color(0xFF5F7991)],
+              },
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white, width: 1.6),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Text(
             model.label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+              shadows: [
+                Shadow(
+                  color: Color(0x80000000),
+                  blurRadius: 3,
+                  offset: Offset(0, 1),
+                ),
+              ],
             ),
           ),
         ),
