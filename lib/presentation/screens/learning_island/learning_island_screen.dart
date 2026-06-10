@@ -35,6 +35,8 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
   late final AnimationController _frameCtrl;
   int _currentFrame = 0;
 
+  late final AnimationController _bobCtrl;
+
   @override
   void initState() {
     super.initState();
@@ -47,13 +49,30 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
       final frame = (_frameCtrl.value * 5).floor().clamp(0, 4);
       if (frame != _currentFrame) setState(() => _currentFrame = frame);
     });
+
+    _bobCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    )..repeat();
   }
 
   @override
   void dispose() {
     _frameCtrl.dispose();
+    _bobCtrl.dispose();
     _unlockCtrl?.dispose();
     super.dispose();
+  }
+
+  Widget _bob({required Widget child, double phase = 0, double amplitude = 6}) {
+    return AnimatedBuilder(
+      animation: _bobCtrl,
+      builder: (_, c) {
+        final dy = math.sin((_bobCtrl.value * 2 * math.pi) + phase) * amplitude;
+        return Transform.translate(offset: Offset(0, dy), child: c);
+      },
+      child: child,
+    );
   }
 
   int get _currentIdx =>
@@ -70,10 +89,11 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
       duration: const Duration(milliseconds: 500),
     );
     _unlockingIdx = tappedIdx;
+    // Flip current → complete ngay với hiệu ứng nảy.
+    _checkpoints[curIdx].state = CheckpointState.complete;
 
     _unlockCtrl!.forward().then((_) {
       setState(() {
-        _checkpoints[curIdx].state = CheckpointState.complete;
         _checkpoints[tappedIdx].state = CheckpointState.current;
         _unlockingIdx = null;
         _currentFrame = 0;
@@ -85,14 +105,14 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
 
   // Offsets from island center — calibrated from screenshot pixel positions
   static const List<Offset> _cpOffsets = [
-    Offset( -15,  140), // Lesson 1 — dock bottom-center
+    Offset(  15,   78), // Lesson 1 — đầu path trên đảo (sát dock)
     Offset( -29,   69), // Lesson 2 — flag/pole area
     Offset( -76,   11), // Lesson 3 — near magnifying glass
     Offset( -37,  -22), // Lesson 4 — center below school
-    Offset( -37,  -58), // Lesson 5 — school entrance
+    Offset(  45,  -15), // Lesson 5 — trên đoạn path phải trường học
     Offset(  41,  -94), // Lesson 6 — right (computer desk)
     Offset( -18, -140), // Lesson 7 — upper-center (big tree)
-    Offset( -32, -179), // Lesson 8 — upper (books / graduation cap)
+    Offset(  70, -120), // Lesson 8 — sát chân stairs 123, trên path
   ];
 
   @override
@@ -133,11 +153,14 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
               Positioned(
                 left: cx - 190,
                 top: cy - 230,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/learning_main_island.png',
-                  width: 380,
-                  errorBuilder: (_, __, ___) =>
-                      const SizedBox(width: 380, height: 300),
+                child: _bob(
+                  amplitude: 5,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/learning_main_island.png',
+                    width: 380,
+                    errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 380, height: 300),
+                  ),
                 ),
               ),
 
@@ -155,14 +178,17 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
               for (var i = 0; i < _checkpoints.length; i++)
                 Positioned(
                   left: cpPositions[i].dx - _CheckpointContent.kSize / 2,
-                  top: cpPositions[i].dy - _CheckpointContent.kSize / 2,
-                  child: GestureDetector(
-                    onTap: () => _onCheckpointTap(i),
-                    child: _CheckpointContent(
-                      model: _checkpoints[i],
-                      currentFrame: _currentFrame,
-                      isUnlocking: _unlockingIdx == i,
-                      unlockCtrl: _unlockingIdx == i ? _unlockCtrl : null,
+                  top: cpPositions[i].dy - _CheckpointContent.kSize * 1.1,
+                  child: _bob(
+                    amplitude: 5,
+                    child: GestureDetector(
+                      onTap: () => _onCheckpointTap(i),
+                      child: _CheckpointContent(
+                        model: _checkpoints[i],
+                        currentFrame: _currentFrame,
+                        isUnlocking: _unlockingIdx == i,
+                        unlockCtrl: _unlockingIdx == i ? _unlockCtrl : null,
+                      ),
                     ),
                   ),
                 ),
@@ -171,46 +197,66 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
               Positioned(
                 left: w * 0.02,
                 top: h * 0.10,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/decor_learning_island1.png',
-                  width: 90,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: _bob(
+                  phase: 1.1,
+                  amplitude: 7,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/decor_learning_island1.png',
+                    width: 90,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
               Positioned(
                 right: w * 0.02,
                 top: h * 0.06,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/decor_learning_island2.png',
-                  width: 100,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: _bob(
+                  phase: 2.4,
+                  amplitude: 7,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/decor_learning_island2.png',
+                    width: 100,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
               Positioned(
                 left: w * 0.03,
                 bottom: h * 0.18,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/decor_learning_island3.png',
-                  width: 80,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: _bob(
+                  phase: 3.0,
+                  amplitude: 6,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/decor_learning_island3.png',
+                    width: 80,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
               Positioned(
                 right: w * 0.03,
                 bottom: h * 0.16,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/decor_learning_island4.png',
-                  width: 85,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: _bob(
+                  phase: 0.6,
+                  amplitude: 6,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/decor_learning_island4.png',
+                    width: 85,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
               Positioned(
                 right: w * 0.06,
                 top: h * 0.26,
-                child: Image.asset(
-                  'assets/images/learningIslandScreen/island_globe.png',
-                  width: 70,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                child: _bob(
+                  phase: 1.8,
+                  amplitude: 8,
+                  child: Image.asset(
+                    'assets/images/learningIslandScreen/island_globe.png',
+                    width: 70,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
 
@@ -331,7 +377,7 @@ class _CheckpointContent extends StatelessWidget {
     required this.unlockCtrl,
   });
 
-  static const double kSize = 46.0;
+  static const double kSize = 36.0;
 
   final CheckpointModel model;
   final int currentFrame;
@@ -352,7 +398,7 @@ class _CheckpointContent extends StatelessWidget {
   Widget _baseImg() => Image.asset(
         _asset,
         width: kSize,
-        height: kSize,
+        fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => Container(
           width: kSize,
           height: kSize,
@@ -389,8 +435,16 @@ class _CheckpointContent extends StatelessWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        img,
+        SizedBox(
+          height: kSize * 1.6,
+          width: kSize,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: img,
+          ),
+        ),
         const SizedBox(height: 2),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
