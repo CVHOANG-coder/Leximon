@@ -13,11 +13,13 @@ class StageReward {
     required this.coinsGained,
     required this.leveledUp,
     required this.profile,
+    this.firstClear = false,
   });
 
   final int xpGained;
   final int coinsGained;
   final bool leveledUp;
+  final bool firstClear;
   final UserProfile profile;
 }
 
@@ -202,14 +204,11 @@ class ProgressRepository {
         }
       }
 
-      // 4. Thưởng XP / coin + xử lý lên cấp.
-      var xpGained = 0;
-      var coinsGained = 0;
-      if (passed) {
-        xpGained = score * xpPerCorrectAnswer + stars * xpPerStar;
-        coinsGained =
-            stars * coinsPerStar + (firstClear ? firstClearCoinBonus : 0);
-      }
+      // 4. Thưởng XP + xử lý lên cấp. Coin/food/shard/eggs/... do
+      //    [RewardService] + [InventoryRepository.grantReward] phụ trách,
+      //    tránh cộng trùng tại đây.
+      final xpGained =
+          passed ? score * xpPerCorrectAnswer + stars * xpPerStar : 0;
 
       final profileRows = await txn.query('user_profile', where: 'id = 1');
       final profile = UserProfile.fromMap(profileRows.first);
@@ -225,7 +224,6 @@ class ProgressRepository {
           'level': level,
           'xp': xp,
           'total_xp': profile.totalXp + xpGained,
-          'coins': profile.coins + coinsGained,
           'updated_at': now,
         },
         where: 'id = 1',
@@ -233,13 +231,19 @@ class ProgressRepository {
 
       return StageReward(
         xpGained: xpGained,
-        coinsGained: coinsGained,
+        coinsGained: 0,
         leveledUp: level > profile.level,
+        firstClear: firstClear,
         profile: UserProfile(
           level: level,
           xp: xp,
           totalXp: profile.totalXp + xpGained,
-          coins: profile.coins + coinsGained,
+          coins: profile.coins,
+          food: profile.food,
+          evolutionStone: profile.evolutionStone,
+          commonEgg: profile.commonEgg,
+          rareEgg: profile.rareEgg,
+          chest: profile.chest,
         ),
       );
     });

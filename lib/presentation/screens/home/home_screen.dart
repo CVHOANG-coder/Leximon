@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/user_profile.dart';
+import '../../../data/repositories/progress_repository.dart';
 import '../../../game/components/island_data.dart';
 import '../../../game/world_map_game.dart';
 
@@ -13,23 +15,50 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final WorldMapGame _game;
+  UserProfile? _profile;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _loadProfile();
     _game = WorldMapGame(
       islands: IslandData.defaults,
       // currentIslandIndex omitted — defaults to the last unlocked island
       onIslandTapped: (island) {
         if (island.id == 'learning') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) context.push('/learning-island');
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            await context.push('/learning-island');
+            if (mounted) _loadProfile();
           });
         }
       },
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await ProgressRepository.instance.getProfile();
+    if (!mounted) return;
+    setState(() => _profile = profile);
+  }
+
+  Future<void> _pushAndRefresh(String location) async {
+    await context.push(location);
+    if (mounted) _loadProfile();
   }
 
   @override
@@ -43,7 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
           // ── Top HUD bar ──────────────────────────────────────────────────
           SafeArea(
             child: _TopHud(
-              onProfileTap: () => context.push('/profile'),
+              coins: _profile?.coins ?? 0,
+              food: _profile?.food ?? 0,
+              onProfileTap: () => _pushAndRefresh('/profile'),
             ),
           ),
 
@@ -52,7 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 10,
             top: MediaQuery.of(context).padding.top + 90,
             child: _SideNav(
-              onCollectionTap: () => context.push('/collection'),
+              onCollectionTap: () => _pushAndRefresh('/collection'),
+              onInventoryTap: () => _pushAndRefresh('/inventory'),
             ),
           ),
         ],
@@ -64,8 +96,14 @@ class _HomeScreenState extends State<HomeScreen> {
 // ─── Top HUD ─────────────────────────────────────────────────────────────────
 
 class _TopHud extends StatelessWidget {
-  const _TopHud({required this.onProfileTap});
+  const _TopHud({
+    required this.onProfileTap,
+    required this.coins,
+    required this.food,
+  });
   final VoidCallback onProfileTap;
+  final int coins;
+  final int food;
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +170,7 @@ class _TopHud extends StatelessWidget {
           // Coins
           _CurrencyChip(
             asset: 'assets/images/coin.png',
-            value: '1250',
+            value: '$coins',
             // Ảnh coin có nhiều khoảng trong suốt nên cần lớn hơn cho cân.
             iconSize: 28,
           ),
@@ -140,7 +178,7 @@ class _TopHud extends StatelessWidget {
           // Food
           _CurrencyChip(
             asset: 'assets/images/food.png',
-            value: '350',
+            value: '$food',
           ),
         ],
       ),
@@ -215,8 +253,12 @@ class _CurrencyChip extends StatelessWidget {
 // ─── Right-side navigation ────────────────────────────────────────────────────
 
 class _SideNav extends StatelessWidget {
-  const _SideNav({required this.onCollectionTap});
+  const _SideNav({
+    required this.onCollectionTap,
+    required this.onInventoryTap,
+  });
   final VoidCallback onCollectionTap;
+  final VoidCallback onInventoryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -232,9 +274,9 @@ class _SideNav extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _NavButton(
-          icon: Icons.assignment_outlined,
-          label: 'QUESTS',
-          onTap: () {},
+          icon: Icons.backpack_outlined,
+          label: 'BAG',
+          onTap: onInventoryTap,
         ),
         const SizedBox(height: 8),
         _NavButton(

@@ -7,8 +7,11 @@ import '../../../core/tts/tts_service.dart';
 import '../../../data/models/context_sentence.dart';
 import '../../../data/models/vocab_topic.dart';
 import '../../../data/models/vocab_word.dart';
+import '../../../data/repositories/inventory_repository.dart';
 import '../../../data/repositories/progress_repository.dart';
 import '../../../data/repositories/vocabulary_repository.dart';
+import '../../../data/services/reward_service.dart';
+import 'stage_complete_dialog.dart';
 
 // ─── Palette (parchment / cartoon game style) ─────────────────────────────────
 
@@ -238,13 +241,52 @@ class _LessonScreenState extends State<LessonScreen> {
     ];
   }
 
-  List<_Question> _buildQuestions(_Stage stage) {
-    final pool = _allWords.sublist(stage.start, stage.end)..shuffle(_rng);
-    // Chặng "Học": chỉ dạng chọn nghĩa để làm quen từ mới.
-    if (stage.kind == _StageKind.learn) {
-      return [for (final w in pool) _buildMeaningQuestion(w)];
+  /// Số câu hỏi mục tiêu cho 1 chặng theo `questionCountRules` ở
+  /// `topics_with_stage_difficulty.json`.
+  int _targetQuestionCount({
+    required _StageKind kind,
+    required int stageIdx,
+    required int totalStages,
+    required int wordCount,
+  }) {
+    if (kind == _StageKind.learn) {
+      return (wordCount * 0.65).ceil().clamp(6, 10);
     }
-    // Chặng "Ôn": xen kẽ 5 dạng chơi theo chu kỳ cố định.
+    final isLast = stageIdx == totalStages - 1;
+    if (isLast) {
+      // final_review: fixed theo độ dài topic (tính trên _stages tổng).
+      if (totalStages <= 3) return 12;
+      if (totalStages <= 5) return 16;
+      if (totalStages <= 7) return 22;
+      if (totalStages <= 9) return 28;
+      if (totalStages <= 11) return 34;
+      return 40;
+    }
+    // review: nửa đầu = normal, nửa sau = hard.
+    final isEarlyHalf = stageIdx < totalStages / 2;
+    return isEarlyHalf
+        ? (wordCount * 0.85).ceil().clamp(8, 12)
+        : (wordCount * 1.05).ceil().clamp(10, 15);
+  }
+
+  List<_Question> _buildQuestions(_Stage stage, int stageIdx) {
+    final pool = _allWords.sublist(stage.start, stage.end)..shuffle(_rng);
+    final target = _targetQuestionCount(
+      kind: stage.kind,
+      stageIdx: stageIdx,
+      totalStages: _stages.length,
+      wordCount: pool.length,
+    );
+
+    // Chặng "Học": chỉ dạng chọn nghĩa để làm quen từ mới — lặp lại pool
+    // nếu thiếu, cắt nếu thừa, để khớp số câu mục tiêu.
+    if (stage.kind == _StageKind.learn) {
+      return [
+        for (var i = 0; i < target; i++) _buildMeaningQuestion(pool[i % pool.length]),
+      ];
+    }
+
+    // Chặng "Ôn" / "Ôn cuối": xen kẽ 5 dạng chơi theo chu kỳ.
     const cycle = [
       _QKind.listening,
       _QKind.fillBlank,
@@ -254,8 +296,9 @@ class _LessonScreenState extends State<LessonScreen> {
     ];
     final usedSentences = <String>{};
     return [
-      for (var i = 0; i < pool.length; i++)
-        _buildReviewQuestion(pool[i], cycle[i % cycle.length], usedSentences),
+      for (var i = 0; i < target; i++)
+        _buildReviewQuestion(
+            pool[i % pool.length], cycle[i % cycle.length], usedSentences),
     ];
   }
 
@@ -416,7 +459,7 @@ class _LessonScreenState extends State<LessonScreen> {
   void _startStage(int idx) {
     setState(() {
       _stageIdx = idx;
-      _questions = _buildQuestions(_stages[idx]);
+      _questions = _buildQuestions(_stages[idx], idx);
       _qIdx = 0;
       _score = 0;
       _selectedIdx = null;
@@ -446,8 +489,21 @@ class _LessonScreenState extends State<LessonScreen> {
     });
   }
 
-  void _onStageTap(int idx) {
+  Future<void> _onStageTap(int idx) async {
     if (idx == _stageIdx || !_isUnlocked(idx)) return;
+    // Có tiến độ dở (đã trả ít nhất 1 câu / đang xếp từ) → hỏi xác nhận.
+    final inProgress = _qIdx > 0 ||
+        _score > 0 ||
+        _placed.isNotEmpty ||
+        _selectedIdx != null;
+    if (inProgress) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _SwitchStageWarningDialog(),
+      );
+      if (confirm != true || !mounted) return;
+    }
     _startStage(idx);
   }
 
@@ -557,10 +613,16 @@ class _LessonScreenState extends State<LessonScreen> {
         : (_score >= total * 0.6 ? 2 : (_score >= total * 0.3 ? 1 : 0));
 
     final stage = _stages[_stageIdx];
+    final isLastStage = _stageIdx == _stages.length - 1;
+    // Chặng review cuối topic = final_review → kích hoạt mức thưởng
+    // boss / elite_boss theo độ dài topic (xem reward_mechanism_explanation.md).
+    final stageType = stage.kind == _StageKind.learn
+        ? 'learn'
+        : (isLastStage ? 'final_review' : 'review');
     final reward = await ProgressRepository.instance.recordStagePlay(
       topicId: widget.topicId,
       stage: _stageIdx + 1,
-      stageType: stage.kind == _StageKind.learn ? 'learn' : 'review',
+      stageType: stageType,
       score: _score,
       totalQuestions: total,
       stars: stars,
@@ -570,19 +632,44 @@ class _LessonScreenState extends State<LessonScreen> {
           ? [for (final w in _allWords.sublist(stage.start, stage.end)) w.word]
           : const [],
     );
+
+    final payload = passed
+        ? await RewardService.instance.rollStageReward(
+            stageType: stageType,
+            stageIndex: _stageIdx,
+            totalStages: _stages.length,
+            stars: stars,
+            islandId: widget.islandId,
+          )
+        : const RewardPayload();
+    final difficulty = difficultyFor(
+      stageType: stageType,
+      stageIndex: _stageIdx,
+      totalStages: _stages.length,
+    );
     if (!mounted) return;
 
     final replay = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _ResultDialog(
-        stageLabel: _stages[_stageIdx].label,
-        score: _score,
-        total: total,
-        stars: stars,
-        passed: passed,
-        reward: reward,
-      ),
+      builder: (ctx) => passed
+          ? StageCompleteDialog(
+              score: _score,
+              total: total,
+              stars: stars,
+              reward: payload,
+              topicId: widget.topicId,
+              stage: _stageIdx + 1,
+              difficulty: difficulty,
+            )
+          : _ResultDialog(
+              stageLabel: _stages[_stageIdx].label,
+              score: _score,
+              total: total,
+              stars: stars,
+              passed: passed,
+              reward: reward,
+            ),
     );
     if (!mounted) return;
     if (replay == true) {
@@ -1135,22 +1222,32 @@ class _LessonScreenState extends State<LessonScreen> {
       ),
       child: Column(
         children: [
-          // Các ô trống — chạm để gỡ thẻ đã đặt.
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              for (var i = 0; i < q.answerTokens.length; i++)
-                _TokenTile(
-                  text: i < _placed.length ? q.tokens[_placed[i]] : '',
-                  square: isAnagram,
-                  isSlot: true,
-                  borderColor: slotBorder,
-                  onTap: () => _onSlotTap(i),
-                ),
-            ],
-          ),
+          // Vùng hiển thị các từ đã chọn:
+          //  - anagram: hàng các ô trống (chạm để gỡ ký tự đã đặt)
+          //  - sentenceOrder: 1 dòng text căn giữa, chạm để gỡ từ cuối
+          if (isAnagram)
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                for (var i = 0; i < q.answerTokens.length; i++)
+                  _TokenTile(
+                    text: i < _placed.length ? q.tokens[_placed[i]] : '',
+                    square: true,
+                    isSlot: true,
+                    borderColor: slotBorder,
+                    onTap: () => _onSlotTap(i),
+                  ),
+              ],
+            )
+          else
+            _SentenceLine(
+              words: [for (final i in _placed) q.tokens[i]],
+              borderColor: slotBorder,
+              onTapRemoveLast:
+                  _placed.isEmpty ? null : () => _onSlotTap(_placed.length - 1),
+            ),
           const SizedBox(height: 16),
           // Các thẻ để chọn.
           Wrap(
@@ -1728,7 +1825,9 @@ class _TokenTile extends StatelessWidget {
           height: 42,
           padding:
               square ? null : const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
+          // Chỉ căn giữa khi ô vuông cố định; nếu null + alignment thì
+          // Container sẽ "nở" để chiếm hết width của Wrap → mất layout.
+          alignment: square ? Alignment.center : null,
           decoration: BoxDecoration(
             color: empty ? _kCreamDark.withValues(alpha: 0.5) : _kCream,
             borderRadius: BorderRadius.circular(10),
@@ -1753,6 +1852,115 @@ class _TokenTile extends StatelessWidget {
               fontSize: square ? 20 : 15,
               fontWeight: FontWeight.w900,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Popup cảnh báo khi người chơi chuyển chặng giữa lúc đang chơi dở.
+class _SwitchStageWarningDialog extends StatelessWidget {
+  const _SwitchStageWarningDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: _kCream,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: const BorderSide(color: _kBorder, width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFE8A93B), size: 48),
+            const SizedBox(height: 8),
+            const Text(
+              'Chuyển chặng?',
+              style: TextStyle(
+                color: _kInk,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Bạn đang chơi dở chặng này.\nTiến độ hiện tại sẽ bị mất.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _kInk,
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _DialogButton(
+                    label: 'Tiếp tục chơi',
+                    color: _kBlue,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DialogButton(
+                    label: 'Chuyển',
+                    color: _kRed,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Khu hiển thị câu đã ghép trong dạng "sắp xếp từ thành câu": một dòng
+/// text căn giữa, chạm để gỡ từ cuối cùng.
+class _SentenceLine extends StatelessWidget {
+  const _SentenceLine({
+    required this.words,
+    required this.borderColor,
+    required this.onTapRemoveLast,
+  });
+
+  final List<String> words;
+  final Color borderColor;
+  final VoidCallback? onTapRemoveLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = words.isEmpty;
+    return GestureDetector(
+      onTap: onTapRemoveLast,
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: empty ? _kCreamDark.withValues(alpha: 0.4) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor, width: 2),
+        ),
+        child: Text(
+          empty ? 'Chạm các từ bên dưới để xếp câu' : words.join(' '),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: empty ? _kInk.withValues(alpha: 0.45) : _kInk,
+            fontSize: 18,
+            height: 1.35,
+            fontWeight: empty ? FontWeight.w700 : FontWeight.w900,
           ),
         ),
       ),

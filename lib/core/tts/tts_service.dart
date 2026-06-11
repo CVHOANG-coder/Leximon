@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:supertonic_flutter/supertonic_flutter.dart';
 
 /// Phát âm từ vựng bằng Supertonic TTS (on-device, ONNX).
@@ -20,9 +24,11 @@ class TtsService {
   static const _cacheLimit = 80;
 
   final _tts = SupertonicTTS();
-  final _player = TTSAudioPlayer();
+  final _player = AudioPlayer();
   final _rng = Random();
   final _cache = <String, TTSResult>{};
+  Directory? _tempDir;
+  int _fileSeq = 0;
 
   bool _initializing = false;
   bool _synthesizing = false;
@@ -68,7 +74,15 @@ class TtsService {
         }
         _cache[key] = result;
       }
-      await _player.play(result);
+      // Tự ghi WAV ra file `.wav` rồi phát qua DeviceFileSource — tránh bug
+      // của TTSAudioPlayer (ghi BytesSource thiếu extension → AVPlayer iOS
+      // fail "Failed to set playerItem").
+      _tempDir ??= await getTemporaryDirectory();
+      final path = p.join(
+          _tempDir!.path, 'tts_${(_fileSeq++) % 2}.wav');
+      await File(path).writeAsBytes(result.toWavBytes(), flush: true);
+      await _player.stop();
+      await _player.play(DeviceFileSource(path));
     } catch (_) {
       // Lỗi tổng hợp / phát âm không được làm hỏng màn chơi.
     } finally {

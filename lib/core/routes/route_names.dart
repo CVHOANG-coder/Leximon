@@ -8,4 +8,5 @@ class RouteNames {
   static const String lesson = '/lesson/:topicId';
   static const String profile = '/profile';
   static const String learningIsland = '/learning-island';
+  static const String inventory = '/inventory';
 }

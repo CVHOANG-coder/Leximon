@@ -1,0 +1,189 @@
+{
+    "rewardConfig": {
+        "currencies": [
+            "coin",
+            "food",
+            "evolutionStone",
+            "creatureShard",
+            "commonEgg",
+            "rareEgg"
+        ],
+        "stageDifficulties": {
+            "easy": {
+                "rewardMultiplier": 1.0,
+                "baseReward": {
+                    "coin": { "min": 8, "max": 14 },
+                    "food": { "min": 10, "max": 18 },
+                    "evolutionStone": { "chance": 0.0, "amount": 0 },
+                    "creatureShard": {
+                        "chance": 0.25,
+                        "amount": { "min": 1, "max": 1 }
+                    },
+                    "commonEgg": { "chance": 0.0 },
+                    "rareEgg": { "chance": 0.0 }
+                }
+            },
+            "normal": {
+                "rewardMultiplier": 1.2,
+                "baseReward": {
+                    "coin": { "min": 12, "max": 20 },
+                    "food": { "min": 16, "max": 26 },
+                    "evolutionStone": { "chance": 0.05, "amount": 1 },
+                    "creatureShard": {
+                        "chance": 0.4,
+                        "amount": { "min": 1, "max": 2 }
+                    },
+                    "commonEgg": { "chance": 0.0 },
+                    "rareEgg": { "chance": 0.0 }
+                }
+            },
+            "hard": {
+                "rewardMultiplier": 1.5,
+                "baseReward": {
+                    "coin": { "min": 18, "max": 30 },
+                    "food": { "min": 24, "max": 38 },
+                    "evolutionStone": { "chance": 0.1, "amount": 1 },
+                    "creatureShard": {
+                        "chance": 0.6,
+                        "amount": { "min": 1, "max": 3 }
+                    },
+                    "commonEgg": { "chance": 0.03 },
+                    "rareEgg": { "chance": 0.0 }
+                }
+            },
+            "boss": {
+                "rewardMultiplier": 2.2,
+                "baseReward": {
+                    "coin": { "min": 35, "max": 55 },
+                    "food": { "min": 45, "max": 70 },
+                    "evolutionStone": {
+                        "chance": 0.35,
+                        "amount": { "min": 1, "max": 2 }
+                    },
+                    "creatureShard": {
+                        "chance": 1.0,
+                        "amount": { "min": 3, "max": 6 }
+                    },
+                    "commonEgg": { "chance": 0.18 },
+                    "rareEgg": { "chance": 0.03 }
+                }
+            },
+            "elite_boss": {
+                "rewardMultiplier": 3.0,
+                "baseReward": {
+                    "coin": { "min": 60, "max": 90 },
+                    "food": { "min": 80, "max": 120 },
+                    "evolutionStone": {
+                        "chance": 0.6,
+                        "amount": { "min": 2, "max": 4 }
+                    },
+                    "creatureShard": {
+                        "chance": 1.0,
+                        "amount": { "min": 5, "max": 10 }
+                    },
+                    "commonEgg": { "chance": 0.35 },
+                    "rareEgg": { "chance": 0.08 }
+                }
+            }
+        },
+        "shardRarityRate": {
+            "common": 0.68,
+            "rare": 0.22,
+            "epic": 0.08,
+            "legendary": 0.02
+        },
+        "eggHatchRate": {
+            "commonEgg": {
+                "common": 0.72,
+                "rare": 0.2,
+                "epic": 0.07,
+                "legendary": 0.01
+            },
+            "rareEgg": {
+                "common": 0.35,
+                "rare": 0.4,
+                "epic": 0.2,
+                "legendary": 0.05
+            }
+        },
+        "performanceBonus": [
+            {
+                "accuracyMin": 0,
+                "accuracyMax": 69,
+                "stageStar": 1,
+                "rewardMultiplier": 0.7,
+                "extraShardChance": 0.0
+            },
+            {
+                "accuracyMin": 70,
+                "accuracyMax": 89,
+                "stageStar": 2,
+                "rewardMultiplier": 1.0,
+                "extraShardChance": 0.05
+            },
+            {
+                "accuracyMin": 90,
+                "accuracyMax": 100,
+                "stageStar": 3,
+                "rewardMultiplier": 1.25,
+                "extraShardChance": 0.12
+            }
+        ],
+        "topicLengthMultiplier": {
+            "3": 0.85,
+            "5": 1.0,
+            "7": 1.15,
+            "9": 1.3,
+            "11": 1.45,
+            "13": 1.6
+        },
+        "starUpgradeCost": {
+            "common": [
+                { "toStar": 1, "coin": 50, "shard": 5 },
+                { "toStar": 2, "coin": 120, "shard": 10 },
+                { "toStar": 3, "coin": 250, "shard": 20 },
+                { "toStar": 4, "coin": 450, "shard": 35 },
+                { "toStar": 5, "coin": 750, "shard": 55 }
+            ],
+            "rare": [
+                { "toStar": 1, "coin": 80, "shard": 8 },
+                { "toStar": 2, "coin": 200, "shard": 16 },
+                { "toStar": 3, "coin": 420, "shard": 32 },
+                { "toStar": 4, "coin": 750, "shard": 55 },
+                { "toStar": 5, "coin": 1200, "shard": 85 }
+            ],
+            "epic": [
+                { "toStar": 1, "coin": 150, "shard": 10 },
+                { "toStar": 2, "coin": 350, "shard": 22 },
+                { "toStar": 3, "coin": 750, "shard": 45 },
+                { "toStar": 4, "coin": 1300, "shard": 75 },
+                { "toStar": 5, "coin": 2100, "shard": 120 }
+            ],
+            "legendary": [
+                { "toStar": 1, "coin": 300, "shard": 15 },
+                { "toStar": 2, "coin": 700, "shard": 35 },
+                { "toStar": 3, "coin": 1500, "shard": 70 },
+                { "toStar": 4, "coin": 2600, "shard": 120 },
+                { "toStar": 5, "coin": 4200, "shard": 200 }
+            ]
+        },
+        "evolutionCost": {
+            "common": {
+                "babyToTeen": { "coin": 200, "evolutionStone": 3 },
+                "teenToAdult": { "coin": 500, "evolutionStone": 8 }
+            },
+            "rare": {
+                "babyToTeen": { "coin": 350, "evolutionStone": 5 },
+                "teenToAdult": { "coin": 800, "evolutionStone": 12 }
+            },
+            "epic": {
+                "babyToTeen": { "coin": 600, "evolutionStone": 8 },
+                "teenToAdult": { "coin": 1400, "evolutionStone": 20 }
+            },
+            "legendary": {
+                "babyToTeen": { "coin": 1200, "evolutionStone": 15 },
+                "teenToAdult": { "coin": 3000, "evolutionStone": 40 }
+            }
+        }
+    }
+}

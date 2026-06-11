@@ -43,6 +43,17 @@ class CreatureRepository {
     return _creatures!;
   }
 
+  /// Tra cứu nhanh theo id từ cache; null nếu chưa gọi [loadCreatures]
+  /// hoặc id không tồn tại.
+  Creature? cachedById(String id) {
+    final list = _creatures;
+    if (list == null) return null;
+    for (final c in list) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
   /// Sinh vật có bộ ảnh riêng hay chỉ dùng ảnh mặc định.
   static bool hasOwnImage(String id) => _imagePrefix.containsKey(id);
 

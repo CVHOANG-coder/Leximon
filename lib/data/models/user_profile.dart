@@ -7,6 +7,11 @@ class UserProfile extends Equatable {
     required this.xp,
     required this.totalXp,
     required this.coins,
+    this.chest = 0,
+    this.food = 0,
+    this.evolutionStone = 0,
+    this.commonEgg = 0,
+    this.rareEgg = 0,
   });
 
   final int level;
@@ -17,6 +22,11 @@ class UserProfile extends Equatable {
   /// XP tích lũy toàn bộ.
   final int totalXp;
   final int coins;
+  final int chest;
+  final int food;
+  final int evolutionStone;
+  final int commonEgg;
+  final int rareEgg;
 
   /// XP cần để lên cấp tiếp theo từ [level].
   static int xpToLevelUp(int level) => 100 + (level - 1) * 50;
@@ -30,8 +40,23 @@ class UserProfile extends Equatable {
         xp: map['xp'] as int,
         totalXp: map['total_xp'] as int,
         coins: map['coins'] as int,
+        chest: (map['chest'] as int?) ?? 0,
+        food: (map['food'] as int?) ?? 0,
+        evolutionStone: (map['evolution_stone'] as int?) ?? 0,
+        commonEgg: (map['common_egg'] as int?) ?? 0,
+        rareEgg: (map['rare_egg'] as int?) ?? 0,
       );
 
   @override
-  List<Object?> get props => [level, xp, totalXp, coins];
+  List<Object?> get props => [
+        level,
+        xp,
+        totalXp,
+        coins,
+        chest,
+        food,
+        evolutionStone,
+        commonEgg,
+        rareEgg,
+      ];
 }

@@ -17,7 +17,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'leximon.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   Database? _db;
 
@@ -29,6 +29,7 @@ class AppDatabase {
       version: _dbVersion,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
     return _db!;
   }
@@ -36,13 +37,18 @@ class AppDatabase {
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE user_profile (
-        id         INTEGER PRIMARY KEY CHECK (id = 1),
-        level      INTEGER NOT NULL DEFAULT 1,
-        xp         INTEGER NOT NULL DEFAULT 0, -- XP trong cấp hiện tại
-        total_xp   INTEGER NOT NULL DEFAULT 0, -- XP tích lũy toàn bộ
-        coins      INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL,           -- epoch millis
-        updated_at INTEGER NOT NULL
+        id              INTEGER PRIMARY KEY CHECK (id = 1),
+        level           INTEGER NOT NULL DEFAULT 1,
+        xp              INTEGER NOT NULL DEFAULT 0, -- XP trong cấp hiện tại
+        total_xp        INTEGER NOT NULL DEFAULT 0, -- XP tích lũy toàn bộ
+        coins           INTEGER NOT NULL DEFAULT 0,
+        chest           INTEGER NOT NULL DEFAULT 0,
+        food            INTEGER NOT NULL DEFAULT 0,
+        evolution_stone INTEGER NOT NULL DEFAULT 0,
+        common_egg      INTEGER NOT NULL DEFAULT 0,
+        rare_egg        INTEGER NOT NULL DEFAULT 0,
+        created_at      INTEGER NOT NULL,           -- epoch millis
+        updated_at      INTEGER NOT NULL
       )
     ''');
 
@@ -96,6 +102,8 @@ class AppDatabase {
       'CREATE INDEX idx_word_progress_topic ON word_progress(topic_id)',
     );
 
+    await _createInventoryTables(db);
+
     // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin.
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.insert('user_profile', {
@@ -107,6 +115,74 @@ class AppDatabase {
       'created_at': now,
       'updated_at': now,
     });
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // user_profile: thêm các cột currency mới.
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN chest INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN food INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN evolution_stone INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN common_egg INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN rare_egg INTEGER NOT NULL DEFAULT 0',
+      );
+      await _createInventoryTables(db);
+    }
+  }
+
+  /// Tạo các bảng inventory + seed shard_inventory với 4 rarity.
+  Future<void> _createInventoryTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE shard_inventory (
+        rarity TEXT    PRIMARY KEY
+               CHECK (rarity IN ('common','rare','epic','legendary')),
+        amount INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    for (final r in const ['common', 'rare', 'epic', 'legendary']) {
+      await db.insert('shard_inventory', {'rarity': r, 'amount': 0});
+    }
+
+    await db.execute('''
+      CREATE TABLE creature_inventory (
+        creature_id TEXT    PRIMARY KEY,
+        shards      INTEGER NOT NULL DEFAULT 0,
+        hatched     INTEGER NOT NULL DEFAULT 0,
+        stars       INTEGER NOT NULL DEFAULT 0
+                    CHECK (stars BETWEEN 0 AND 5),
+        stage       TEXT    NOT NULL DEFAULT 'baby'
+                    CHECK (stage IN ('baby','teen','adult')),
+        obtained_at INTEGER,
+        updated_at  INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_creature_hatched ON creature_inventory(hatched)',
+    );
+
+    await db.execute('''
+      CREATE TABLE reward_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic_id   INTEGER NOT NULL,
+        stage      INTEGER NOT NULL,
+        difficulty TEXT    NOT NULL,
+        stars      INTEGER NOT NULL,
+        payload    TEXT    NOT NULL,
+        awarded_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_reward_log_stage ON reward_log(topic_id, stage)',
+    );
   }
 
   Future<void> close() async {
