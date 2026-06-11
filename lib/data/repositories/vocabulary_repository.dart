@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../models/context_sentence.dart';
 import '../models/vocab_topic.dart';
 import '../models/vocab_word.dart';
 
@@ -16,6 +17,7 @@ class VocabularyRepository {
 
   List<VocabTopic>? _topics;
   Map<int, List<VocabWord>>? _wordsByTopic;
+  Map<int, Map<String, List<ContextSentence>>>? _sentencesByTopic;
 
   Future<List<VocabTopic>> loadTopics() async {
     if (_topics != null) return _topics!;
@@ -50,5 +52,39 @@ class VocabularyRepository {
       };
     }
     return _wordsByTopic![topicId] ?? const [];
+  }
+
+  /// Gom toàn bộ `contextSentences` trong các chặng của một chủ đề,
+  /// nhóm theo từ đáp án (chữ thường) để tra cứu nhanh khi tạo câu hỏi.
+  Future<Map<String, List<ContextSentence>>> sentencesForTopic(
+    int topicId,
+  ) async {
+    if (_sentencesByTopic == null) {
+      final raw = await rootBundle.loadString(_topicsAsset);
+      final list = jsonDecode(raw) as List<dynamic>;
+      _sentencesByTopic = {
+        for (final t in list.cast<Map<String, dynamic>>())
+          t['id'] as int: _parseSentences(t),
+      };
+    }
+    return _sentencesByTopic![topicId] ?? const {};
+  }
+
+  static Map<String, List<ContextSentence>> _parseSentences(
+    Map<String, dynamic> topic,
+  ) {
+    final byAnswer = <String, List<ContextSentence>>{};
+    final stages =
+        (topic['stages'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    for (final stage in stages) {
+      final raw = stage['contextSentences'] as List<dynamic>?;
+      if (raw == null) continue;
+      for (final e in raw.cast<Map<String, dynamic>>()) {
+        final c = ContextSentence.fromJson(e);
+        if (c.sentence.isEmpty || c.answer.isEmpty) continue;
+        byAnswer.putIfAbsent(c.answer.toLowerCase(), () => []).add(c);
+      }
+    }
+    return byAnswer;
   }
 }

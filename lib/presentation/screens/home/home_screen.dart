@@ -131,15 +131,15 @@ class _TopHud extends StatelessWidget {
 
           // Coins
           _CurrencyChip(
-            icon: Icons.monetization_on_rounded,
-            iconColor: AppColors.accent,
+            asset: 'assets/images/coin.png',
             value: '1250',
+            // Ảnh coin có nhiều khoảng trong suốt nên cần lớn hơn cho cân.
+            iconSize: 28,
           ),
           const SizedBox(width: 8),
-          // Gems
+          // Food
           _CurrencyChip(
-            icon: Icons.diamond_rounded,
-            iconColor: const Color(0xFFB66CF5),
+            asset: 'assets/images/food.png',
             value: '350',
           ),
         ],
@@ -177,13 +177,13 @@ class _LevelBar extends StatelessWidget {
 
 class _CurrencyChip extends StatelessWidget {
   const _CurrencyChip({
-    required this.icon,
-    required this.iconColor,
+    required this.asset,
     required this.value,
+    this.iconSize = 22,
   });
-  final IconData icon;
-  final Color iconColor;
+  final String asset;
   final String value;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +197,7 @@ class _CurrencyChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 18),
+          Image.asset(asset, width: iconSize, height: iconSize),
           const SizedBox(width: 5),
           Text(
             value,

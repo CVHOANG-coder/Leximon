@@ -34,6 +34,7 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.lesson,
       builder: (_, state) => LessonScreen(
         topicId: int.tryParse(state.pathParameters['topicId'] ?? '') ?? 1,
+        islandId: state.uri.queryParameters['islandId'],
       ),
     ),
     GoRoute(

@@ -106,7 +106,7 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
     // Checkpoint đã mở (đang học hoặc đã xong) → vào màn học từ vựng
     final tapped = _checkpoints[tappedIdx];
     if (tapped.state != CheckpointState.uncheck) {
-      context.push('/lesson/${tapped.topicId}');
+      context.push('/lesson/${tapped.topicId}?islandId=learning');
       return;
     }
 

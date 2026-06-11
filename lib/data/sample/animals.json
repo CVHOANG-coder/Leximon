@@ -1,0 +1,806 @@
+{
+  "rarities": ["common", "rare", "epic", "legendary"],
+  "evolutionStages": ["baby", "teen", "adult"],
+  "creatures": [
+    {
+      "id": "owlmon",
+      "name": "Owlmon",
+      "island": "Learning Island",
+      "theme": "School supplies",
+      "rarity": "common",
+      "eggType": "Scholar Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Owlmon",
+          "skill": "Gain 2% extra XP from vocabulary lessons."
+        },
+        "teen": {
+          "name": "Young Owlmon",
+          "skill": "Gain 5% extra XP from vocabulary lessons."
+        },
+        "adult": {
+          "name": "Master Owlmon",
+          "skill": "Gain 8% extra XP and reveal one hint per lesson."
+        }
+      }
+    },
+    {
+      "id": "book_fox",
+      "name": "Book Fox",
+      "island": "Learning Island",
+      "theme": "Numbers",
+      "rarity": "rare",
+      "eggType": "Scholar Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Book Fox",
+          "skill": "Gain 3% extra XP from number lessons."
+        },
+        "teen": {
+          "name": "Quick Book Fox",
+          "skill": "Gain 7% extra XP from number lessons."
+        },
+        "adult": {
+          "name": "King Book Fox",
+          "skill": "Gain 10% extra XP and one bonus reward after number reviews."
+        }
+      }
+    },
+    {
+      "id": "computurtle",
+      "name": "Computurtle",
+      "island": "Learning Island",
+      "theme": "Computer",
+      "rarity": "epic",
+      "eggType": "Scholar Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Computurtle",
+          "skill": "Protect one combo mistake per day."
+        },
+        "teen": {
+          "name": "Cyber Computurtle",
+          "skill": "Protect one combo mistake and gain 8% extra XP."
+        },
+        "adult": {
+          "name": "Ancient Computurtle",
+          "skill": "Protect one combo mistake, gain 12% extra XP, and unlock one smart hint per quiz."
+        }
+      }
+    },
+    {
+      "id": "number_bunny",
+      "name": "Number Bunny",
+      "island": "Learning Island",
+      "theme": "Education",
+      "rarity": "legendary",
+      "eggType": "Scholar Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Number Bunny",
+          "skill": "Gain 10% extra XP from all Learning Island topics."
+        },
+        "teen": {
+          "name": "Royal Number Bunny",
+          "skill": "Gain 15% extra XP and double rewards from perfect lessons."
+        },
+        "adult": {
+          "name": "Celestial Number Bunny",
+          "skill": "Gain 20% extra XP, double perfect rewards, and revive one failed challenge per day."
+        }
+      }
+    },
+
+    {
+      "id": "home_cat",
+      "name": "Home Cat",
+      "island": "Home Village",
+      "theme": "Bedroom",
+      "rarity": "common",
+      "eggType": "Family Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Home Cat",
+          "skill": "Gain 2% extra food from home lessons."
+        },
+        "teen": {
+          "name": "Cozy Home Cat",
+          "skill": "Gain 5% extra food from home lessons."
+        },
+        "adult": {
+          "name": "Guardian Home Cat",
+          "skill": "Gain 8% extra food and one bonus review reward."
+        }
+      }
+    },
+    {
+      "id": "friendship_dog",
+      "name": "Friendship Dog",
+      "island": "Home Village",
+      "theme": "Friendship",
+      "rarity": "rare",
+      "eggType": "Family Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Friendship Dog",
+          "skill": "Gain 3% extra XP from friendship lessons."
+        },
+        "teen": {
+          "name": "Loyal Friendship Dog",
+          "skill": "Gain 7% extra XP from friendship lessons."
+        },
+        "adult": {
+          "name": "Hero Friendship Dog",
+          "skill": "Gain 10% extra XP and keep streak after one missed answer."
+        }
+      }
+    },
+    {
+      "id": "love_bunny",
+      "name": "Love Bunny",
+      "island": "Home Village",
+      "theme": "Love",
+      "rarity": "epic",
+      "eggType": "Family Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Love Bunny",
+          "skill": "Restore one heart after completing a lesson."
+        },
+        "teen": {
+          "name": "Charm Love Bunny",
+          "skill": "Restore one heart and gain 10% extra food."
+        },
+        "adult": {
+          "name": "Royal Love Bunny",
+          "skill": "Restore one heart, gain 12% extra food, and unlock one second chance per day."
+        }
+      }
+    },
+    {
+      "id": "family_bear",
+      "name": "Family Bear",
+      "island": "Home Village",
+      "theme": "Family",
+      "rarity": "legendary",
+      "eggType": "Family Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Family Bear",
+          "skill": "Gain 10% extra rewards from all Home Village topics."
+        },
+        "teen": {
+          "name": "Noble Family Bear",
+          "skill": "Gain 15% extra rewards and restore one heart daily."
+        },
+        "adult": {
+          "name": "Family Guardian Bear",
+          "skill": "Gain 20% extra rewards, restore one heart daily, and protect one streak break per day."
+        }
+      }
+    },
+
+    {
+      "id": "dolphimon",
+      "name": "Dolphimon",
+      "island": "Ocean Kingdom",
+      "theme": "Sea",
+      "rarity": "common",
+      "eggType": "Ocean Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Dolphimon",
+          "skill": "Gain 2% extra XP from ocean lessons."
+        },
+        "teen": {
+          "name": "Swift Dolphimon",
+          "skill": "Gain 5% extra XP from ocean lessons."
+        },
+        "adult": {
+          "name": "Wave Dolphimon",
+          "skill": "Gain 8% extra XP and one bonus ocean review."
+        }
+      }
+    },
+    {
+      "id": "coral_fairy",
+      "name": "Coral Fairy",
+      "island": "Ocean Kingdom",
+      "theme": "Environment",
+      "rarity": "rare",
+      "eggType": "Ocean Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Coral Fairy",
+          "skill": "Gain 3% extra food from environment lessons."
+        },
+        "teen": {
+          "name": "Bloom Coral Fairy",
+          "skill": "Gain 7% extra food from environment lessons."
+        },
+        "adult": {
+          "name": "Crystal Coral Fairy",
+          "skill": "Gain 10% extra food and one hint in review mode."
+        }
+      }
+    },
+    {
+      "id": "sharkmon",
+      "name": "Sharkmon",
+      "island": "Ocean Kingdom",
+      "theme": "Sea animals",
+      "rarity": "epic",
+      "eggType": "Ocean Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Sharkmon",
+          "skill": "Gain 8% extra XP from challenge lessons."
+        },
+        "teen": {
+          "name": "Blade Sharkmon",
+          "skill": "Gain 12% extra XP from challenge lessons."
+        },
+        "adult": {
+          "name": "Abyss Sharkmon",
+          "skill": "Gain 15% extra XP and double rewards from perfect challenge lessons."
+        }
+      }
+    },
+    {
+      "id": "leviathan_whale",
+      "name": "Leviathan Whale",
+      "island": "Ocean Kingdom",
+      "theme": "Ocean boss",
+      "rarity": "legendary",
+      "eggType": "Ocean Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Leviathan Whale",
+          "skill": "Gain 10% extra rewards from all Ocean Kingdom topics."
+        },
+        "teen": {
+          "name": "Ancient Leviathan Whale",
+          "skill": "Gain 15% extra rewards and unlock one free hint daily."
+        },
+        "adult": {
+          "name": "Celestial Leviathan Whale",
+          "skill": "Gain 20% extra rewards, unlock one free hint daily, and revive one failed ocean challenge."
+        }
+      }
+    },
+
+    {
+      "id": "bee_sprite",
+      "name": "Bee Sprite",
+      "island": "Nature Island",
+      "theme": "Insects",
+      "rarity": "common",
+      "eggType": "Nature Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Bee Sprite",
+          "skill": "Gain 2% extra food from nature lessons."
+        },
+        "teen": {
+          "name": "Busy Bee Sprite",
+          "skill": "Gain 5% extra food from nature lessons."
+        },
+        "adult": {
+          "name": "Royal Bee Sprite",
+          "skill": "Gain 8% extra food and one bonus nature reward."
+        }
+      }
+    },
+    {
+      "id": "flower_fox",
+      "name": "Flower Fox",
+      "island": "Nature Island",
+      "theme": "Flowers",
+      "rarity": "rare",
+      "eggType": "Nature Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Flower Fox",
+          "skill": "Gain 3% extra XP from flower lessons."
+        },
+        "teen": {
+          "name": "Bloom Flower Fox",
+          "skill": "Gain 7% extra XP from flower lessons."
+        },
+        "adult": {
+          "name": "Mystic Flower Fox",
+          "skill": "Gain 10% extra XP and one hint in flower quizzes."
+        }
+      }
+    },
+    {
+      "id": "fruit_panda",
+      "name": "Fruit Panda",
+      "island": "Nature Island",
+      "theme": "Fruits",
+      "rarity": "epic",
+      "eggType": "Nature Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Fruit Panda",
+          "skill": "Gain 8% extra food from fruit lessons."
+        },
+        "teen": {
+          "name": "Sweet Fruit Panda",
+          "skill": "Gain 12% extra food from fruit lessons."
+        },
+        "adult": {
+          "name": "Golden Fruit Panda",
+          "skill": "Gain 15% extra food and double rewards from perfect fruit reviews."
+        }
+      }
+    },
+    {
+      "id": "ancient_treant",
+      "name": "Ancient Treant",
+      "island": "Nature Island",
+      "theme": "Plants",
+      "rarity": "legendary",
+      "eggType": "Nature Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Ancient Treant",
+          "skill": "Gain 10% extra rewards from all Nature Island topics."
+        },
+        "teen": {
+          "name": "Elder Ancient Treant",
+          "skill": "Gain 15% extra rewards and protect one wrong answer in review mode."
+        },
+        "adult": {
+          "name": "World Ancient Treant",
+          "skill": "Gain 20% extra rewards, protect one wrong answer, and unlock one rare egg shard daily."
+        }
+      }
+    },
+
+    {
+      "id": "coin_panda",
+      "name": "Coin Panda",
+      "island": "City Island",
+      "theme": "Bank",
+      "rarity": "common",
+      "eggType": "Urban Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Coin Panda",
+          "skill": "Gain 2% extra coins from city lessons."
+        },
+        "teen": {
+          "name": "Lucky Coin Panda",
+          "skill": "Gain 5% extra coins from city lessons."
+        },
+        "adult": {
+          "name": "Golden Coin Panda",
+          "skill": "Gain 8% extra coins and one bonus daily coin reward."
+        }
+      }
+    },
+    {
+      "id": "taxi_fox",
+      "name": "Taxi Fox",
+      "island": "City Island",
+      "theme": "Transportation",
+      "rarity": "rare",
+      "eggType": "Urban Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Taxi Fox",
+          "skill": "Gain 3% extra XP from transportation lessons."
+        },
+        "teen": {
+          "name": "Speed Taxi Fox",
+          "skill": "Gain 7% extra XP from transportation lessons."
+        },
+        "adult": {
+          "name": "Turbo Taxi Fox",
+          "skill": "Gain 10% extra XP and shorten egg hatching progress by 5%."
+        }
+      }
+    },
+    {
+      "id": "shop_hamster",
+      "name": "Shop Hamster",
+      "island": "City Island",
+      "theme": "Shopping",
+      "rarity": "epic",
+      "eggType": "Urban Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Shop Hamster",
+          "skill": "Gain 8% extra coins from shopping lessons."
+        },
+        "teen": {
+          "name": "Merchant Shop Hamster",
+          "skill": "Gain 12% extra coins from shopping lessons."
+        },
+        "adult": {
+          "name": "Royal Shop Hamster",
+          "skill": "Gain 15% extra coins and one shop discount per day."
+        }
+      }
+    },
+    {
+      "id": "golden_merchant",
+      "name": "Golden Merchant",
+      "island": "City Island",
+      "theme": "City boss",
+      "rarity": "legendary",
+      "eggType": "Urban Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Golden Merchant",
+          "skill": "Gain 10% extra coins from all City Island topics."
+        },
+        "teen": {
+          "name": "Noble Golden Merchant",
+          "skill": "Gain 15% extra coins and one daily shop discount."
+        },
+        "adult": {
+          "name": "King Golden Merchant",
+          "skill": "Gain 20% extra coins, one daily shop discount, and one bonus egg shard after perfect city lessons."
+        }
+      }
+    },
+
+    {
+      "id": "explorer_wolf",
+      "name": "Explorer Wolf",
+      "island": "Adventure Island",
+      "theme": "Travel",
+      "rarity": "common",
+      "eggType": "Explorer Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Explorer Wolf",
+          "skill": "Gain 2% extra XP from travel lessons."
+        },
+        "teen": {
+          "name": "Brave Explorer Wolf",
+          "skill": "Gain 5% extra XP from travel lessons."
+        },
+        "adult": {
+          "name": "Captain Explorer Wolf",
+          "skill": "Gain 8% extra XP and one travel hint per lesson."
+        }
+      }
+    },
+    {
+      "id": "eagle_rider",
+      "name": "Eagle Rider",
+      "island": "Adventure Island",
+      "theme": "Airport",
+      "rarity": "rare",
+      "eggType": "Explorer Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Eagle Rider",
+          "skill": "Gain 3% extra XP from airport lessons."
+        },
+        "teen": {
+          "name": "Sky Eagle Rider",
+          "skill": "Gain 7% extra XP from airport lessons."
+        },
+        "adult": {
+          "name": "Storm Eagle Rider",
+          "skill": "Gain 10% extra XP and speed up egg hatching by 5%."
+        }
+      }
+    },
+    {
+      "id": "compass_dragon",
+      "name": "Compass Dragon",
+      "island": "Adventure Island",
+      "theme": "Countries",
+      "rarity": "epic",
+      "eggType": "Explorer Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Compass Dragon",
+          "skill": "Gain 8% extra rewards from country lessons."
+        },
+        "teen": {
+          "name": "Map Compass Dragon",
+          "skill": "Gain 12% extra rewards from country lessons."
+        },
+        "adult": {
+          "name": "World Compass Dragon",
+          "skill": "Gain 15% extra rewards and unlock one map treasure per day."
+        }
+      }
+    },
+    {
+      "id": "world_dragon",
+      "name": "World Dragon",
+      "island": "Adventure Island",
+      "theme": "Adventure boss",
+      "rarity": "legendary",
+      "eggType": "Explorer Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby World Dragon",
+          "skill": "Gain 10% extra rewards from all Adventure Island topics."
+        },
+        "teen": {
+          "name": "Ancient World Dragon",
+          "skill": "Gain 15% extra rewards and one free challenge retry daily."
+        },
+        "adult": {
+          "name": "Celestial World Dragon",
+          "skill": "Gain 20% extra rewards, one free challenge retry daily, and double rewards from perfect boss battles."
+        }
+      }
+    },
+
+    {
+      "id": "healer_deer",
+      "name": "Healer Deer",
+      "island": "Life Island",
+      "theme": "Health",
+      "rarity": "common",
+      "eggType": "Life Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Healer Deer",
+          "skill": "Restore 1 extra heart every 3 days."
+        },
+        "teen": {
+          "name": "Kind Healer Deer",
+          "skill": "Restore 1 extra heart every 2 days."
+        },
+        "adult": {
+          "name": "Sacred Healer Deer",
+          "skill": "Restore 1 extra heart daily after completing a lesson."
+        }
+      }
+    },
+    {
+      "id": "emotion_fox",
+      "name": "Emotion Fox",
+      "island": "Life Island",
+      "theme": "Emotions",
+      "rarity": "rare",
+      "eggType": "Life Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Emotion Fox",
+          "skill": "Gain 3% extra XP from emotion lessons."
+        },
+        "teen": {
+          "name": "Bright Emotion Fox",
+          "skill": "Gain 7% extra XP from emotion lessons."
+        },
+        "adult": {
+          "name": "Mystic Emotion Fox",
+          "skill": "Gain 10% extra XP and protect one mistake in emotion quizzes."
+        }
+      }
+    },
+    {
+      "id": "doctor_panda",
+      "name": "Doctor Panda",
+      "island": "Life Island",
+      "theme": "Hospital",
+      "rarity": "epic",
+      "eggType": "Life Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Doctor Panda",
+          "skill": "Restore one heart after a perfect lesson."
+        },
+        "teen": {
+          "name": "Medic Doctor Panda",
+          "skill": "Restore one heart and gain 10% extra XP after a perfect lesson."
+        },
+        "adult": {
+          "name": "Royal Doctor Panda",
+          "skill": "Restore one heart, gain 15% extra XP, and revive one failed lesson per day."
+        }
+      }
+    },
+    {
+      "id": "angel_phoenix",
+      "name": "Angel Phoenix",
+      "island": "Life Island",
+      "theme": "Life boss",
+      "rarity": "legendary",
+      "eggType": "Life Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Angel Phoenix",
+          "skill": "Gain 10% extra rewards from all Life Island topics."
+        },
+        "teen": {
+          "name": "Divine Angel Phoenix",
+          "skill": "Gain 15% extra rewards and revive one failed lesson daily."
+        },
+        "adult": {
+          "name": "Celestial Angel Phoenix",
+          "skill": "Gain 20% extra rewards, revive one failed lesson daily, and restore one heart after each perfect lesson."
+        }
+      }
+    },
+
+    {
+      "id": "rockstar_bird",
+      "name": "Rockstar Bird",
+      "island": "Entertainment Island",
+      "theme": "Music",
+      "rarity": "common",
+      "eggType": "Star Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Rockstar Bird",
+          "skill": "Gain 2% extra XP from music lessons."
+        },
+        "teen": {
+          "name": "Pop Rockstar Bird",
+          "skill": "Gain 5% extra XP from music lessons."
+        },
+        "adult": {
+          "name": "Legend Rockstar Bird",
+          "skill": "Gain 8% extra XP and one rhythm bonus reward."
+        }
+      }
+    },
+    {
+      "id": "movie_panda",
+      "name": "Movie Panda",
+      "island": "Entertainment Island",
+      "theme": "Movies",
+      "rarity": "rare",
+      "eggType": "Star Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Movie Panda",
+          "skill": "Gain 3% extra rewards from movie lessons."
+        },
+        "teen": {
+          "name": "Star Movie Panda",
+          "skill": "Gain 7% extra rewards from movie lessons."
+        },
+        "adult": {
+          "name": "Director Movie Panda",
+          "skill": "Gain 10% extra rewards and one hint in movie quizzes."
+        }
+      }
+    },
+    {
+      "id": "football_tiger",
+      "name": "Football Tiger",
+      "island": "Entertainment Island",
+      "theme": "Football",
+      "rarity": "epic",
+      "eggType": "Star Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Football Tiger",
+          "skill": "Gain 8% extra XP from sport lessons."
+        },
+        "teen": {
+          "name": "Striker Football Tiger",
+          "skill": "Gain 12% extra XP from sport lessons."
+        },
+        "adult": {
+          "name": "Champion Football Tiger",
+          "skill": "Gain 15% extra XP and double rewards from perfect sport challenges."
+        }
+      }
+    },
+    {
+      "id": "stardust_phoenix",
+      "name": "Stardust Phoenix",
+      "island": "Entertainment Island",
+      "theme": "Entertainment boss",
+      "rarity": "legendary",
+      "eggType": "Star Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Stardust Phoenix",
+          "skill": "Gain 10% extra rewards from all Entertainment Island topics."
+        },
+        "teen": {
+          "name": "Radiant Stardust Phoenix",
+          "skill": "Gain 15% extra rewards and one free challenge retry daily."
+        },
+        "adult": {
+          "name": "Celestial Stardust Phoenix",
+          "skill": "Gain 20% extra rewards, one free retry daily, and double rewards from perfect entertainment lessons."
+        }
+      }
+    },
+
+    {
+      "id": "moon_rabbit",
+      "name": "Moon Rabbit",
+      "island": "Festival Island",
+      "theme": "Mid-Autumn Festival",
+      "rarity": "common",
+      "eggType": "Festival Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Moon Rabbit",
+          "skill": "Gain 2% extra food from festival lessons."
+        },
+        "teen": {
+          "name": "Lantern Moon Rabbit",
+          "skill": "Gain 5% extra food from festival lessons."
+        },
+        "adult": {
+          "name": "Royal Moon Rabbit",
+          "skill": "Gain 8% extra food and one festival bonus reward."
+        }
+      }
+    },
+    {
+      "id": "rainbow_unicorn",
+      "name": "Rainbow Unicorn",
+      "island": "Festival Island",
+      "theme": "Colors",
+      "rarity": "rare",
+      "eggType": "Festival Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Rainbow Unicorn",
+          "skill": "Gain 3% extra XP from color lessons."
+        },
+        "teen": {
+          "name": "Bright Rainbow Unicorn",
+          "skill": "Gain 7% extra XP from color lessons."
+        },
+        "adult": {
+          "name": "Crystal Rainbow Unicorn",
+          "skill": "Gain 10% extra XP and one color hint per lesson."
+        }
+      }
+    },
+    {
+      "id": "christmas_reindeer",
+      "name": "Christmas Reindeer",
+      "island": "Festival Island",
+      "theme": "Christmas",
+      "rarity": "epic",
+      "eggType": "Festival Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Christmas Reindeer",
+          "skill": "Gain 8% extra rewards from Christmas lessons."
+        },
+        "teen": {
+          "name": "Snow Christmas Reindeer",
+          "skill": "Gain 12% extra rewards from Christmas lessons."
+        },
+        "adult": {
+          "name": "Royal Christmas Reindeer",
+          "skill": "Gain 15% extra rewards and one gift chest after perfect festival lessons."
+        }
+      }
+    },
+    {
+      "id": "moon_dragon",
+      "name": "Moon Dragon",
+      "island": "Festival Island",
+      "theme": "Festival boss",
+      "rarity": "legendary",
+      "eggType": "Festival Egg",
+      "stages": {
+        "baby": {
+          "name": "Baby Moon Dragon",
+          "skill": "Gain 10% extra rewards from all Festival Island topics."
+        },
+        "teen": {
+          "name": "Lunar Moon Dragon",
+          "skill": "Gain 15% extra rewards and one bonus gift chest daily."
+        },
+        "adult": {
+          "name": "Celestial Moon Dragon",
+          "skill": "Gain 20% extra rewards, one bonus gift chest daily, and double rewards from perfect festival challenges."
+        }
+      }
+    }
+  ]
+}
