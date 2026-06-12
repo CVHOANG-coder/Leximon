@@ -82,20 +82,34 @@ class _Question {
       kind == _QKind.fillBlank;
 }
 
-enum _StageKind { learn, review }
+enum _StageKind { learn, review, finalReview }
 
-/// One stage on the bottom track: "Học 1-10", "Ôn 1-10", "Học 11-20", …
-/// [start] inclusive / [end] exclusive indices into the topic word list.
+/// One stage on the bottom track, dựng theo kế hoạch chặng trong
+/// `topics_with_stage_difficulty.json`: [words] là pool từ vựng của chặng và
+/// [targetCount] là `recommendedQuestionCount` lấy thẳng từ JSON.
 class _Stage {
-  const _Stage({required this.kind, required this.start, required this.end});
+  const _Stage({
+    required this.kind,
+    required this.type,
+    required this.words,
+    required this.targetCount,
+    required this.label,
+  });
 
   final _StageKind kind;
-  final int start;
-  final int end;
 
-  int get wordCount => end - start;
-  String get label =>
-      '${kind == _StageKind.learn ? 'Học' : 'Ôn'} ${start + 1}-$end';
+  /// Type gốc trong JSON: `learn` / `review` / `final_review`.
+  final String type;
+
+  /// Pool từ vựng của chặng (đã giải về [VocabWord]).
+  final List<VocabWord> words;
+
+  /// Số câu mục tiêu = `recommendedQuestionCount` của chặng trong JSON.
+  final int targetCount;
+
+  final String label;
+
+  int get wordCount => words.length;
 }
 
 /// Màn chơi học từ vựng theo chủ đề: quiz "Chọn nghĩa tiếng Việt đúng"
@@ -112,8 +126,6 @@ class LessonScreen extends StatefulWidget {
 }
 
 class _LessonScreenState extends State<LessonScreen> {
-  static const int _chunkSize = 10;
-
   final _rng = math.Random();
   final _stageScroll = ScrollController();
 
@@ -187,14 +199,14 @@ class _LessonScreenState extends State<LessonScreen> {
       final savedStages =
           await ProgressRepository.instance.getStagesForTopic(widget.topicId);
       if (!mounted) return;
-      if (words.length < 4) {
+      if (topic == null || words.length < 4) {
         setState(() {
           _error = 'Chủ đề này chưa có đủ từ vựng.';
           _loading = false;
         });
         return;
       }
-      final stages = _buildStages(words.length);
+      final stages = _buildStages(topic, words);
       // Khôi phục các chặng đã qua từ SQLite (stage trong DB là 1-based).
       final completed = {
         for (final s in savedStages)
@@ -224,59 +236,66 @@ class _LessonScreenState extends State<LessonScreen> {
     }
   }
 
-  List<_Stage> _buildStages(int wordCount) {
-    return [
-      for (var s = 0; s < wordCount; s += _chunkSize) ...[
-        _Stage(
-          kind: _StageKind.learn,
-          start: s,
-          end: math.min(s + _chunkSize, wordCount),
-        ),
-        _Stage(
-          kind: _StageKind.review,
-          start: s,
-          end: math.min(s + _chunkSize, wordCount),
-        ),
-      ],
-    ];
+  /// Dựng track chặng theo kế hoạch `stages[]` trong JSON. Mỗi chặng lấy pool
+  /// từ vựng và `recommendedQuestionCount` trực tiếp từ JSON; `final_review`
+  /// (JSON không liệt kê từ) ôn toàn bộ chủ đề.
+  List<_Stage> _buildStages(VocabTopic topic, List<VocabWord> words) {
+    final byWord = {
+      for (final w in words) w.word.toLowerCase(): w,
+    };
+    final indexOf = {
+      for (var i = 0; i < words.length; i++) words[i].word.toLowerCase(): i,
+    };
+
+    final stages = <_Stage>[];
+    for (final s in topic.stages) {
+      final List<VocabWord> pool;
+      if (s.isFinalReview || s.words.isEmpty) {
+        pool = List.of(words);
+      } else {
+        pool = [
+          for (final raw in s.words) ?byWord[raw.toLowerCase()],
+        ];
+      }
+      if (pool.isEmpty) continue;
+
+      final _StageKind kind = s.isLearn
+          ? _StageKind.learn
+          : (s.isFinalReview ? _StageKind.finalReview : _StageKind.review);
+
+      stages.add(_Stage(
+        kind: kind,
+        type: s.type,
+        words: pool,
+        targetCount: s.recommendedQuestionCount > 0
+            ? s.recommendedQuestionCount
+            : pool.length,
+        label: _stageLabel(kind, pool, indexOf),
+      ));
+    }
+    return stages;
   }
 
-  /// Số câu hỏi mục tiêu cho 1 chặng theo `questionCountRules` ở
-  /// `topics_with_stage_difficulty.json`.
-  int _targetQuestionCount({
-    required _StageKind kind,
-    required int stageIdx,
-    required int totalStages,
-    required int wordCount,
-  }) {
-    if (kind == _StageKind.learn) {
-      return (wordCount * 0.65).ceil().clamp(6, 10);
-    }
-    final isLast = stageIdx == totalStages - 1;
-    if (isLast) {
-      // final_review: fixed theo độ dài topic (tính trên _stages tổng).
-      if (totalStages <= 3) return 12;
-      if (totalStages <= 5) return 16;
-      if (totalStages <= 7) return 22;
-      if (totalStages <= 9) return 28;
-      if (totalStages <= 11) return 34;
-      return 40;
-    }
-    // review: nửa đầu = normal, nửa sau = hard.
-    final isEarlyHalf = stageIdx < totalStages / 2;
-    return isEarlyHalf
-        ? (wordCount * 0.85).ceil().clamp(8, 12)
-        : (wordCount * 1.05).ceil().clamp(10, 15);
+  /// Nhãn ngắn dưới node chặng. Giữ dạng "Học a-b" / "Ôn a-b" theo vị trí từ
+  /// trong danh sách chủ đề; `final_review` hiển thị "Ôn cuối".
+  String _stageLabel(
+    _StageKind kind,
+    List<VocabWord> pool,
+    Map<String, int> indexOf,
+  ) {
+    if (kind == _StageKind.finalReview) return 'Ôn cuối';
+    final prefix = kind == _StageKind.learn ? 'Học' : 'Ôn';
+    final idxs = [
+      for (final w in pool) ?indexOf[w.word.toLowerCase()],
+    ];
+    if (idxs.isEmpty) return prefix;
+    idxs.sort();
+    return '$prefix ${idxs.first + 1}-${idxs.last + 1}';
   }
 
   List<_Question> _buildQuestions(_Stage stage, int stageIdx) {
-    final pool = _allWords.sublist(stage.start, stage.end)..shuffle(_rng);
-    final target = _targetQuestionCount(
-      kind: stage.kind,
-      stageIdx: stageIdx,
-      totalStages: _stages.length,
-      wordCount: pool.length,
-    );
+    final pool = List.of(stage.words)..shuffle(_rng);
+    final target = stage.targetCount;
 
     // Chặng "Học": chỉ dạng chọn nghĩa để làm quen từ mới — lặp lại pool
     // nếu thiếu, cắt nếu thừa, để khớp số câu mục tiêu.
@@ -613,12 +632,10 @@ class _LessonScreenState extends State<LessonScreen> {
         : (_score >= total * 0.6 ? 2 : (_score >= total * 0.3 ? 1 : 0));
 
     final stage = _stages[_stageIdx];
-    final isLastStage = _stageIdx == _stages.length - 1;
-    // Chặng review cuối topic = final_review → kích hoạt mức thưởng
-    // boss / elite_boss theo độ dài topic (xem reward_mechanism_explanation.md).
-    final stageType = stage.kind == _StageKind.learn
-        ? 'learn'
-        : (isLastStage ? 'final_review' : 'review');
+    // Type lấy thẳng từ JSON: learn / review / final_review. final_review
+    // kích hoạt mức thưởng boss / elite_boss theo độ dài topic
+    // (xem reward_mechanism_explanation.md).
+    final stageType = stage.type;
     final reward = await ProgressRepository.instance.recordStagePlay(
       topicId: widget.topicId,
       stage: _stageIdx + 1,
@@ -629,7 +646,7 @@ class _LessonScreenState extends State<LessonScreen> {
       passed: passed,
       totalStages: _stages.length,
       learnedWords: stage.kind == _StageKind.learn
-          ? [for (final w in _allWords.sublist(stage.start, stage.end)) w.word]
+          ? [for (final w in stage.words) w.word]
           : const [],
     );
 

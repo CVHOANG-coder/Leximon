@@ -12,7 +12,8 @@ class VocabularyRepository {
   VocabularyRepository._();
   static final VocabularyRepository instance = VocabularyRepository._();
 
-  static const _topicsAsset = 'lib/data/sample/topics.json';
+  static const _topicsAsset =
+      'lib/data/sample/topics_with_stage_difficulty.json';
   static const _vocabularyAsset = 'lib/data/sample/all_vocabulary.json';
 
   List<VocabTopic>? _topics;
@@ -22,11 +23,20 @@ class VocabularyRepository {
   Future<List<VocabTopic>> loadTopics() async {
     if (_topics != null) return _topics!;
     final raw = await rootBundle.loadString(_topicsAsset);
-    final list = jsonDecode(raw) as List<dynamic>;
     _topics = [
-      for (final e in list.cast<Map<String, dynamic>>()) VocabTopic.fromJson(e),
+      for (final e in _decodeTopics(raw)) VocabTopic.fromJson(e),
     ];
     return _topics!;
+  }
+
+  /// File topics có thể là mảng trần `[...]` (topics.json) hoặc đối tượng bọc
+  /// `{ "version": ..., "topics": [...] }` (topics_with_stage_difficulty.json).
+  static List<Map<String, dynamic>> _decodeTopics(String raw) {
+    final decoded = jsonDecode(raw);
+    final list = decoded is Map<String, dynamic>
+        ? decoded['topics'] as List<dynamic>
+        : decoded as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
   }
 
   Future<VocabTopic?> topicById(int id) async {
@@ -61,10 +71,8 @@ class VocabularyRepository {
   ) async {
     if (_sentencesByTopic == null) {
       final raw = await rootBundle.loadString(_topicsAsset);
-      final list = jsonDecode(raw) as List<dynamic>;
       _sentencesByTopic = {
-        for (final t in list.cast<Map<String, dynamic>>())
-          t['id'] as int: _parseSentences(t),
+        for (final t in _decodeTopics(raw)) t['id'] as int: _parseSentences(t),
       };
     }
     return _sentencesByTopic![topicId] ?? const {};
