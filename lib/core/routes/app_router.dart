@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/screens/collection/collection_screen.dart';
+import '../../presentation/screens/creature_detail/creature_detail_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/inventory/inventory_screen.dart';
 import '../../presentation/screens/island_map/island_map_screen.dart';
@@ -30,6 +31,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.collection,
       builder: (_, __) => const CollectionScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.creatureDetail,
+      builder: (_, state) => CreatureDetailScreen(
+        creatureId: state.pathParameters['id'] ?? '',
+      ),
     ),
     GoRoute(
       path: RouteNames.lesson,

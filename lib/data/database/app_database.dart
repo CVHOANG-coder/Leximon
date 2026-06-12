@@ -3,21 +3,34 @@ import 'package:sqflite/sqflite.dart';
 
 /// SQLite database lưu tiến độ học / chơi của người dùng trên local.
 ///
-/// Sơ đồ (schema v1):
+/// Sơ đồ (schema v3):
 ///
-/// - `user_profile`  : 1 dòng duy nhất (id = 1) — cấp độ, kinh nghiệm, coin.
-/// - `topic_progress`: mỗi chủ đề người dùng đã / đang học — trạng thái,
-///                     chặng hiện tại, tổng điểm.
-/// - `stage_progress`: mỗi chặng đã chơi trong một chủ đề — điểm cao nhất,
-///                     số sao, số lần chơi, đã qua hay chưa.
-/// - `word_progress` : mỗi từ đã học — số lần trả lời đúng / sai,
-///                     thời điểm học và ôn gần nhất.
+/// - `user_profile`     : 1 dòng (id = 1) — cấp độ, XP, coin và các loại
+///                        vật phẩm (food, chest, evolution_stone, trứng).
+/// - `topic_progress`   : mỗi chủ đề đã / đang học — trạng thái, chặng hiện
+///                        tại, tổng điểm.
+/// - `stage_progress`   : mỗi chặng đã chơi — điểm cao nhất, sao, số lần chơi.
+/// - `word_progress`    : mỗi từ đã học — số lần trả lời đúng / sai.
+/// - `shard_inventory`  : tổng mảnh theo độ hiếm.
+/// - `creature_inventory`: THÚ CƯNG người chơi sở hữu — mỗi dòng một thú với
+///                        `hatched` (đang sở hữu?), `stars` (0–5),
+///                        `stage` (baby/teen/adult), `shards`.
+/// - `reward_log`       : nhật ký phần thưởng đã trao.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'leximon.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
+
+  /// Thú khởi đầu người chơi sở hữu sẵn: (creature_id, sao, giai đoạn, mảnh).
+  /// 4 thú này đã có sẵn bộ ảnh trong assets.
+  static const _starterCreatures = <(String, int, String, int)>[
+    ('book_fox', 4, 'teen', 65),
+    ('owlmon', 2, 'baby', 30),
+    ('computurtle', 3, 'teen', 50),
+    ('number_bunny', 1, 'baby', 20),
+  ];
 
   Database? _db;
 
@@ -103,6 +116,7 @@ class AppDatabase {
     );
 
     await _createInventoryTables(db);
+    await _seedStarterCreatures(db);
 
     // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin.
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -115,6 +129,19 @@ class AppDatabase {
       'created_at': now,
       'updated_at': now,
     });
+  }
+
+  /// Seed các thú khởi đầu (idempotent — INSERT OR IGNORE nên không ghi đè).
+  Future<void> _seedStarterCreatures(Database db) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final (id, stars, stage, shards) in _starterCreatures) {
+      await db.rawInsert(
+        'INSERT OR IGNORE INTO creature_inventory '
+        '(creature_id, shards, hatched, stars, stage, obtained_at, updated_at) '
+        'VALUES (?, ?, 1, ?, ?, ?, ?)',
+        [id, shards, stars, stage, now, now],
+      );
+    }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -136,6 +163,10 @@ class AppDatabase {
         'ALTER TABLE user_profile ADD COLUMN rare_egg INTEGER NOT NULL DEFAULT 0',
       );
       await _createInventoryTables(db);
+    }
+    if (oldVersion < 3) {
+      // Seed thú khởi đầu cho người chơi đã cài bản cũ.
+      await _seedStarterCreatures(db);
     }
   }
 

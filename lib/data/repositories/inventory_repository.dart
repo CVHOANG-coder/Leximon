@@ -124,6 +124,17 @@ class InventoryRepository {
     return [for (final r in rows) CreatureInventoryEntry.fromMap(r)];
   }
 
+  /// Tập creature_id người chơi đang sở hữu (đã ấp / triệu hồi).
+  Future<Set<String>> getOwnedCreatureIds() async {
+    final db = await _db;
+    final rows = await db.query(
+      'creature_inventory',
+      columns: ['creature_id'],
+      where: 'hatched = 1',
+    );
+    return {for (final r in rows) r['creature_id'] as String};
+  }
+
   Future<int> getTotalShardsCollected() async {
     final db = await _db;
     return Sqflite.firstIntValue(

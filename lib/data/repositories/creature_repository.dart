@@ -11,6 +11,7 @@ class CreatureRepository {
 
   static const _asset = 'lib/data/sample/animals.json';
   static const _imageDir = 'assets/images/learningIslandScreen/animals';
+  static const _lottieDir = 'assets/lotties';
   static const defaultImage = 'assets/images/animal_default.png';
 
   /// Sinh vật đã có bộ ảnh riêng: id → tiền tố tên file.
@@ -63,5 +64,16 @@ class CreatureRepository {
     final prefix = _imagePrefix[id];
     if (prefix == null) return defaultImage;
     return '$_imageDir/${prefix}_${_stageSuffix[stage] ?? 'baby'}.png';
+  }
+
+  /// Đường dẫn hoạt ảnh dotLottie ứng viên cho một stage (cùng quy ước tên
+  /// với [imageAsset]). Trả về null nếu sinh vật chưa có bộ ảnh riêng.
+  ///
+  /// File có thể chưa tồn tại — bên gọi nên dùng `errorBuilder` của Lottie
+  /// để rơi về ảnh tĩnh khi không nạp được.
+  static String? lottieAsset(String id, {String stage = 'baby'}) {
+    final prefix = _imagePrefix[id];
+    if (prefix == null) return null;
+    return '$_lottieDir/${prefix}_${_stageSuffix[stage] ?? 'baby'}.lottie';
   }
 }

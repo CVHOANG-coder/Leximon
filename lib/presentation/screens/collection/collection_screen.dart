@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/models/creature.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/creature_repository.dart';
+import '../../../data/repositories/inventory_repository.dart';
 import '../../../data/repositories/progress_repository.dart';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -96,6 +98,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
   List<Creature> _creatures = const [];
   UserProfile? _profile;
 
+  /// creature_id → số sao, cho các thú người chơi đang sở hữu (đọc từ DB).
+  Map<String, int> _ownedStars = const {};
+
   String _rarityTab = 'all';
   String? _islandFilter;
   _SortMode _sort = _SortMode.number;
@@ -116,16 +121,20 @@ class _CollectionScreenState extends State<CollectionScreen> {
   Future<void> _load() async {
     final creatures = await CreatureRepository.instance.loadCreatures();
     final profile = await ProgressRepository.instance.getProfile();
+    final owned = await InventoryRepository.instance.getAllCreatures();
     if (!mounted) return;
     setState(() {
       _creatures = creatures;
       _profile = profile;
+      _ownedStars = {
+        for (final e in owned)
+          if (e.hatched) e.creatureId: e.stars,
+      };
       _loading = false;
     });
   }
 
-  int get _unlockedCount =>
-      _creatures.where((c) => CreatureRepository.hasOwnImage(c.id)).length;
+  int get _unlockedCount => _ownedStars.length;
 
   List<(int, Creature)> get _visible {
     final query = _searchCtrl.text.trim().toLowerCase();
@@ -197,16 +206,8 @@ class _CollectionScreenState extends State<CollectionScreen> {
     );
   }
 
-  void _showDetail(int number, Creature c) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _CreatureDetailSheet(number: number, creature: c),
-    );
+  void _showDetail(Creature c) {
+    context.push('/creature/${c.id}');
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -439,11 +440,13 @@ class _CollectionScreenState extends State<CollectionScreen> {
       ),
       itemCount: items.length,
       itemBuilder: (_, i) {
-        final (idx, creature) = items[i];
+        final (_, creature) = items[i];
+        final owned = _ownedStars.containsKey(creature.id);
         return _CreatureCard(
           creature: creature,
-          unlocked: CreatureRepository.hasOwnImage(creature.id),
-          onTap: () => _showDetail(idx + 1, creature),
+          unlocked: owned,
+          stars: _ownedStars[creature.id] ?? 0,
+          onTap: () => _showDetail(creature),
         );
       },
     );
@@ -456,11 +459,15 @@ class _CreatureCard extends StatelessWidget {
   const _CreatureCard({
     required this.creature,
     required this.unlocked,
+    required this.stars,
     required this.onTap,
   });
 
   final Creature creature;
   final bool unlocked;
+
+  /// Số sao thực tế của thú (từ DB); 0 nếu chưa sở hữu.
+  final int stars;
   final VoidCallback onTap;
 
   @override
@@ -536,7 +543,7 @@ class _CreatureCard extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.only(right: w * 0.008),
                       child: Image.asset(
-                        unlocked && i < style.stars
+                        unlocked && i < stars
                             ? 'assets/images/star_active.png'
                             : 'assets/images/star_inactive.png',
                         width: w * 0.072,
@@ -552,7 +559,7 @@ class _CreatureCard extends StatelessWidget {
     );
 
     if (!unlocked) {
-      // Khóa: toàn bộ thẻ (khung + thú) chuyển xám, thêm icon khóa.
+      // Khóa: thẻ chuyển xám, phủ lớp đen mờ và đặt ổ khóa lớn ở giữa.
       card = Stack(
         fit: StackFit.expand,
         children: [
@@ -565,19 +572,26 @@ class _CreatureCard extends StatelessWidget {
             ]),
             child: card,
           ),
-          Positioned(
-            right: 14,
-            top: 16,
+          // Lớp phủ đen mờ.
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          // Ổ khóa ở giữa thẻ.
+          Center(
             child: Container(
-              width: 24,
-              height: 24,
+              width: 56,
+              height: 56,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.white70, width: 2),
               ),
               child: const Icon(Icons.lock_rounded,
-                  color: Color(0xFF7C8B9B), size: 15),
+                  color: Colors.white, size: 32),
             ),
           ),
         ],
@@ -585,134 +599,6 @@ class _CreatureCard extends StatelessWidget {
     }
 
     return GestureDetector(onTap: onTap, child: card);
-  }
-}
-
-// ─── Detail bottom sheet ──────────────────────────────────────────────────────
-
-class _CreatureDetailSheet extends StatelessWidget {
-  const _CreatureDetailSheet({required this.number, required this.creature});
-
-  final int number;
-  final Creature creature;
-
-  static const _stageLabels = [
-    ('baby', 'Baby'),
-    ('teen', 'Teen'),
-    ('adult', 'Adult'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final style = _rarityStyles[creature.rarity] ?? _rarityStyles['common']!;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              CreatureRepository.imageAsset(creature.id),
-              height: 110,
-              errorBuilder: (_, _, _) => Image.asset(
-                  CreatureRepository.defaultImage,
-                  height: 110),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '#${number.toString().padLeft(3, '0')}  ${creature.name}',
-              style: const TextStyle(
-                color: _kInk,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${_islandEmoji[creature.island] ?? ''} ${creature.island}'
-              '  ·  ${creature.theme}  ·  🥚 ${creature.eggType}',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _kInk.withValues(alpha: 0.65),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: style.badge,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                style.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            for (final (key, label) in _stageLabels)
-              if (creature.stages[key] != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _kPanel,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: const Color(0xFFD8E0EA), width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          CreatureRepository.imageAsset(creature.id,
-                              stage: key),
-                          width: 44,
-                          height: 44,
-                          errorBuilder: (_, _, _) => Image.asset(
-                              CreatureRepository.defaultImage,
-                              width: 44,
-                              height: 44),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$label · ${creature.stages[key]!.name}',
-                                style: const TextStyle(
-                                  color: _kInk,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                creature.stages[key]!.skill,
-                                style: TextStyle(
-                                  color: _kInk.withValues(alpha: 0.7),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
