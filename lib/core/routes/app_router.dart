@@ -9,6 +9,7 @@ import '../../presentation/screens/learning_island/learning_island_screen.dart';
 import '../../presentation/screens/lesson/lesson_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
+import '../../presentation/screens/team/team_screen.dart';
 import 'route_names.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -56,6 +57,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.inventory,
       builder: (_, __) => const InventoryScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.team,
+      builder: (_, __) => const TeamScreen(),
     ),
   ],
 );

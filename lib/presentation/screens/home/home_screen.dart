@@ -85,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: _SideNav(
               onCollectionTap: () => _pushAndRefresh('/collection'),
               onInventoryTap: () => _pushAndRefresh('/inventory'),
+              onTeamTap: () => _pushAndRefresh('/team'),
             ),
           ),
         ],
@@ -120,18 +121,20 @@ class _TopHud extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white38),
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircleAvatar(
                     radius: 16,
                     backgroundColor: AppColors.accent,
-                    child: const Text('A',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
+                    child: const Text(
+                      'A',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Column(
@@ -141,18 +144,20 @@ class _TopHud extends StatelessWidget {
                       const Text(
                         'PLAYER: ALEX',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700),
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       Row(
                         children: [
                           const Text(
                             'LVL 5',
                             style: TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold),
+                              color: AppColors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           _LevelBar(progress: 0.6),
@@ -172,13 +177,14 @@ class _TopHud extends StatelessWidget {
             asset: 'assets/images/coin.png',
             value: '$coins',
             // Ảnh coin có nhiều khoảng trong suốt nên cần lớn hơn cho cân.
-            iconSize: 28,
+            iconSize: 34,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           // Food
           _CurrencyChip(
             asset: 'assets/images/food.png',
             value: '$food',
+            iconSize: 36,
           ),
         ],
       ),
@@ -193,7 +199,7 @@ class _LevelBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 56,
+      width: 44,
       height: 6,
       decoration: BoxDecoration(
         color: Colors.white24,
@@ -213,11 +219,13 @@ class _LevelBar extends StatelessWidget {
   }
 }
 
+/// Chip tiền tệ kiểu game: pill nền tối, icon tròn nhô ra trái và nút "+"
+/// tròn xanh lá nhô ra phải (theo mockup).
 class _CurrencyChip extends StatelessWidget {
   const _CurrencyChip({
     required this.asset,
     required this.value,
-    this.iconSize = 22,
+    this.iconSize = 30,
   });
   final String asset;
   final String value;
@@ -225,24 +233,80 @@ class _CurrencyChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white30),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      height: 40,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          Image.asset(asset, width: iconSize, height: iconSize),
-          const SizedBox(width: 5),
-          Text(
-            value,
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 13),
+          // Thân pill — chừa chỗ bên trái cho icon nhô ra; số và nút "+"
+          // nằm inline cùng một hàng.
+          Container(
+            height: 32,
+            margin: const EdgeInsets.only(left: 18),
+            padding: const EdgeInsets.fromLTRB(22, 0, 4, 0),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF12325C).withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Nút "+" tròn xanh lá — cùng hàng với số.
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF5CD65C), Color(0xFF2EA82E)],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 17,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Icon tiền tệ nhô ra bên trái, căn giữa theo chiều dọc với pill.
+          Positioned(
+            left: 0,
+            child: Image.asset(asset, width: iconSize, height: iconSize),
           ),
         ],
       ),
@@ -256,9 +320,11 @@ class _SideNav extends StatelessWidget {
   const _SideNav({
     required this.onCollectionTap,
     required this.onInventoryTap,
+    required this.onTeamTap,
   });
   final VoidCallback onCollectionTap;
   final VoidCallback onInventoryTap;
+  final VoidCallback onTeamTap;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +332,12 @@ class _SideNav extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _NavButton(icon: Icons.map_outlined, label: 'MAP', onTap: () {}),
+        const SizedBox(height: 8),
+        _NavButton(
+          icon: Icons.groups_2_outlined,
+          label: 'TEAM',
+          onTap: onTeamTap,
+        ),
         const SizedBox(height: 8),
         _NavButton(
           icon: Icons.catching_pokemon,
@@ -279,11 +351,7 @@ class _SideNav extends StatelessWidget {
           onTap: onInventoryTap,
         ),
         const SizedBox(height: 8),
-        _NavButton(
-          icon: Icons.store_outlined,
-          label: 'SHOP',
-          onTap: () {},
-        ),
+        _NavButton(icon: Icons.store_outlined, label: 'SHOP', onTap: () {}),
       ],
     );
   }
@@ -326,10 +394,11 @@ class _NavButton extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5),
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),

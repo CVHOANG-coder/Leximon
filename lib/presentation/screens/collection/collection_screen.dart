@@ -1,11 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../data/models/creature.dart';
-import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/creature_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
-import '../../../data/repositories/progress_repository.dart';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -14,6 +14,8 @@ const _kBlue = Color(0xFF2F6BFF);
 const _kSkyTop = Color(0xFF3D8BFF);
 const _kSkyBottom = Color(0xFF7FB9F2);
 const _kPanel = Color(0xFFF4F7FC);
+
+const _bgAsset = 'assets/images/collectionScreen/background.png';
 
 /// Kiểu hiển thị theo độ hiếm. Khung thẻ là ảnh trong assets (đã vẽ sẵn
 /// nền, viền, ô tròn góc trên-trái và badge tên độ hiếm góc dưới-phải).
@@ -96,7 +98,6 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   bool _loading = true;
   List<Creature> _creatures = const [];
-  UserProfile? _profile;
 
   /// creature_id → số sao, cho các thú người chơi đang sở hữu (đọc từ DB).
   Map<String, int> _ownedStars = const {};
@@ -120,12 +121,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   Future<void> _load() async {
     final creatures = await CreatureRepository.instance.loadCreatures();
-    final profile = await ProgressRepository.instance.getProfile();
     final owned = await InventoryRepository.instance.getAllCreatures();
     if (!mounted) return;
     setState(() {
       _creatures = creatures;
-      _profile = profile;
       _ownedStars = {
         for (final e in owned)
           if (e.hatched) e.creatureId: e.stars,
@@ -152,17 +151,18 @@ class _CollectionScreenState extends State<CollectionScreen> {
       case _SortMode.name:
         items.sort((a, b) => a.$2.name.compareTo(b.$2.name));
       case _SortMode.rarity:
-        items.sort((a, b) => _rarityOrder
-            .indexOf(a.$2.rarity)
-            .compareTo(_rarityOrder.indexOf(b.$2.rarity)));
+        items.sort(
+          (a, b) => _rarityOrder
+              .indexOf(a.$2.rarity)
+              .compareTo(_rarityOrder.indexOf(b.$2.rarity)),
+        );
     }
     return items;
   }
 
   void _cycleSort() {
     setState(() {
-      _sort = _SortMode
-          .values[(_sort.index + 1) % _SortMode.values.length];
+      _sort = _SortMode.values[(_sort.index + 1) % _SortMode.values.length];
     });
   }
 
@@ -217,10 +217,15 @@ class _CollectionScreenState extends State<CollectionScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
+          // Nền dự phòng (gradient trời) khi ảnh chưa tải được.
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [_kSkyTop, _kSkyBottom],
+          ),
+          image: DecorationImage(
+            image: AssetImage(_bgAsset),
+            fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
@@ -237,8 +242,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       child: Container(
                         decoration: const BoxDecoration(
                           color: _kPanel,
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(26)),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(26),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -265,42 +271,40 @@ class _CollectionScreenState extends State<CollectionScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _RoundButton(
+          GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(Icons.arrow_back_rounded,
-                color: Colors.white, size: 26),
+            child: Image.asset(
+              'assets/images/back_button/back1.png',
+              width: 46,
+              height: 46,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.arrow_back_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Collection ✨',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
+          const Expanded(
+            child: Text(
+              'Collection ✨',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                shadows: [
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-              Text(
-                '🃏 $_unlockedCount / ${_creatures.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+            ),
           ),
-          const Spacer(),
-          _CoinChip(coins: _profile?.coins ?? 0),
+          const SizedBox(width: 8),
+          _CardCountChip(owned: _unlockedCount, total: _creatures.length),
         ],
       ),
     );
@@ -314,40 +318,46 @@ class _CollectionScreenState extends State<CollectionScreen> {
       ('epic', 'Epic', Color(0xFF9333EA)),
       ('legendary', 'Legendary', Color(0xFFE08F00)),
     ];
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (_, i) {
-          final (key, label, color) = tabs[i];
-          final selected = _rarityTab == key;
-          return GestureDetector(
-            onTap: () => setState(() => _rarityTab = key),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? _kBlue : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: selected ? _kBlue : const Color(0xFFD8E0EA),
-                  width: 1.5,
-                ),
+    final selectedIndex = tabs.indexWhere((t) => t.$1 == _rarityTab);
+    // Thanh phân đoạn (segmented control): một dải trắng liền chứa mọi tab,
+    // tab đang chọn là pill xanh bóng, giữa các tab có vạch ngăn mờ.
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      // padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6EAF1), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < tabs.length; i++) ...[
+            // Vạch ngăn mờ — ẩn khi kề pill đang chọn.
+            if (i > 0)
+              SizedBox(
+                width: 1,
+                height: 18,
+                child: (i == selectedIndex || i - 1 == selectedIndex)
+                    ? null
+                    : const ColoredBox(color: Color(0xFFE6EAF1)),
               ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
+            Expanded(
+              child: _RarityTab(
+                label: tabs[i].$2,
+                color: tabs[i].$3,
+                selected: i == selectedIndex,
+                onTap: () => setState(() => _rarityTab = tabs[i].$1),
               ),
             ),
-          );
-        },
+          ],
+        ],
       ),
     );
   }
@@ -359,12 +369,19 @@ class _CollectionScreenState extends State<CollectionScreen> {
         children: [
           Expanded(
             child: Container(
-              height: 42,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(21),
-                border: Border.all(color: const Color(0xFFD8E0EA), width: 1.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE6EAF1), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -408,6 +425,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
               _SortMode.rarity => 'Rarity',
             },
             active: _sort != _SortMode.number,
+            showChevron: true,
             onTap: _cycleSort,
           ),
         ],
@@ -508,8 +526,9 @@ class _CreatureCard extends StatelessWidget {
                 CreatureRepository.imageAsset(creature.id),
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => Image.asset(
-                    CreatureRepository.defaultImage,
-                    fit: BoxFit.contain),
+                  CreatureRepository.defaultImage,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
             // Tên: ngay trên hàng sao, tự co chữ để luôn hiện đầy đủ.
@@ -559,42 +578,61 @@ class _CreatureCard extends StatelessWidget {
     );
 
     if (!unlocked) {
-      // Khóa: thẻ chuyển xám, phủ lớp đen mờ và đặt ổ khóa lớn ở giữa.
-      card = Stack(
-        fit: StackFit.expand,
-        children: [
-          ColorFiltered(
-            colorFilter: const ColorFilter.matrix([
-              0.2126, 0.7152, 0.0722, 0, 0,
-              0.2126, 0.7152, 0.0722, 0, 0,
-              0.2126, 0.7152, 0.0722, 0, 0,
-              0, 0, 0, 1, 0,
-            ]),
-            child: card,
-          ),
-          // Lớp phủ đen mờ.
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(18),
+      // Khóa: thẻ chuyển xám, làm mờ (blur), phủ lớp đen mờ và đặt ổ khóa
+      // lớn ở giữa. ClipRRect bo góc để blur không tràn ra ngoài khung.
+      card = ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColorFiltered(
+              colorFilter: const ColorFilter.matrix([
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+              ]),
+              child: card,
             ),
-          ),
-          // Ổ khóa ở giữa thẻ.
-          Center(
-            child: Container(
-              width: 56,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white70, width: 2),
+            // Lớp blur làm mờ thẻ chưa mở khóa.
+            BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: const SizedBox.expand(),
+            ),
+            // Lớp phủ đen mờ.
+            Container(color: Colors.black.withValues(alpha: 0.45)),
+            // Ổ khóa phủ kín kích thước thẻ.
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/lock.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Center(
+                  child: Icon(
+                    Icons.lock_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
               ),
-              child: const Icon(Icons.lock_rounded,
-                  color: Colors.white, size: 32),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
@@ -604,40 +642,12 @@ class _CreatureCard extends StatelessWidget {
 
 // ─── Small widgets ────────────────────────────────────────────────────────────
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.child, required this.onTap});
-  final Widget child;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: _kBlue,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _CoinChip extends StatelessWidget {
-  const _CoinChip({required this.coins});
-  final int coins;
+/// Chip ở góc phải header hiển thị số thẻ đã mở khóa / tổng số, với icon thẻ
+/// lấy từ assets.
+class _CardCountChip extends StatelessWidget {
+  const _CardCountChip({required this.owned, required this.total});
+  final int owned;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
@@ -649,11 +659,18 @@ class _CoinChip extends StatelessWidget {
         border: Border.all(color: Colors.white24, width: 1.5),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🪙', style: TextStyle(fontSize: 16)),
-          const SizedBox(width: 5),
+          Image.asset(
+            'assets/images/card_frame/icon_card.png',
+            width: 20,
+            height: 20,
+            errorBuilder: (_, _, _) =>
+                const Text('🃏', style: TextStyle(fontSize: 16)),
+          ),
+          const SizedBox(width: 6),
           Text(
-            '$coins',
+            '$owned / $total',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -666,17 +683,76 @@ class _CoinChip extends StatelessWidget {
   }
 }
 
+/// Một phân đoạn trong thanh độ hiếm (segmented control). Khi [selected] hiển
+/// thị pill xanh bóng + chữ trắng; ngược lại chỉ là chữ màu theo độ hiếm.
+class _RarityTab extends StatelessWidget {
+  const _RarityTab({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 32,
+        alignment: Alignment.center,
+        decoration: selected
+            ? BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF5AA0FF), Color(0xFF2F6BFF)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kBlue.withValues(alpha: 0.45),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              )
+            : null,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : color,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ToolButton extends StatelessWidget {
   const _ToolButton({
     required this.icon,
     required this.label,
     required this.onTap,
     this.active = false,
+    this.showChevron = false,
   });
 
   final IconData icon;
   final String label;
   final bool active;
+  final bool showChevron;
   final VoidCallback onTap;
 
   @override
@@ -684,15 +760,22 @@ class _ToolButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: active ? _kBlue : Colors.white,
-          borderRadius: BorderRadius.circular(21),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: active ? _kBlue : const Color(0xFFD8E0EA),
+            color: active ? _kBlue : const Color(0xFFE6EAF1),
             width: 1.5,
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -706,6 +789,14 @@ class _ToolButton extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (showChevron) ...[
+              const SizedBox(width: 2),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: active ? Colors.white : _kInk,
+              ),
+            ],
           ],
         ),
       ),

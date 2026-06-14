@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 /// SQLite database lưu tiến độ học / chơi của người dùng trên local.
 ///
-/// Sơ đồ (schema v3):
+/// Sơ đồ (schema v4):
 ///
 /// - `user_profile`     : 1 dòng (id = 1) — cấp độ, XP, coin và các loại
 ///                        vật phẩm (food, chest, evolution_stone, trứng).
@@ -15,13 +15,15 @@ import 'package:sqflite/sqflite.dart';
 /// - `creature_inventory`: THÚ CƯNG người chơi sở hữu — mỗi dòng một thú với
 ///                        `hatched` (đang sở hữu?), `stars` (0–5),
 ///                        `stage` (baby/teen/adult), `shards`.
+/// - `team_lineup`      : ĐỘI HÌNH RA TRẬN — thú nào đang được mang theo, mỗi
+///                        dòng một ô (`slot`), trỏ tới `creature_inventory`.
 /// - `reward_log`       : nhật ký phần thưởng đã trao.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'leximon.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
 
   /// Thú khởi đầu người chơi sở hữu sẵn: (creature_id, sao, giai đoạn, mảnh).
   /// 4 thú này đã có sẵn bộ ảnh trong assets.
@@ -116,6 +118,7 @@ class AppDatabase {
     );
 
     await _createInventoryTables(db);
+    await _createTeamTable(db);
     await _seedStarterCreatures(db);
 
     // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin.
@@ -168,6 +171,10 @@ class AppDatabase {
       // Seed thú khởi đầu cho người chơi đã cài bản cũ.
       await _seedStarterCreatures(db);
     }
+    if (oldVersion < 4) {
+      // Đội hình ra trận chuyển từ SharedPreferences sang SQLite.
+      await _createTeamTable(db);
+    }
   }
 
   /// Tạo các bảng inventory + seed shard_inventory với 4 rarity.
@@ -214,6 +221,23 @@ class AppDatabase {
     await db.execute(
       'CREATE INDEX idx_reward_log_stage ON reward_log(topic_id, stage)',
     );
+  }
+
+  /// Bảng đội hình ra trận: mỗi dòng là một ô (`slot`, 0-based) chứa một thú.
+  ///
+  /// `creature_id` trỏ tới `creature_inventory`; khi một thú bị xóa khỏi kho
+  /// nó cũng tự rời đội hình (ON DELETE CASCADE). Tối đa 3 ô (khớp
+  /// `TeamRepository.maxSlots`).
+  Future<void> _createTeamTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE team_lineup (
+        slot        INTEGER PRIMARY KEY CHECK (slot BETWEEN 0 AND 2),
+        creature_id TEXT    NOT NULL UNIQUE,
+        updated_at  INTEGER NOT NULL,
+        FOREIGN KEY (creature_id) REFERENCES creature_inventory(creature_id)
+          ON DELETE CASCADE
+      )
+    ''');
   }
 
   Future<void> close() async {

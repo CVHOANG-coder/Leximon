@@ -70,5 +70,10 @@ flutter:
         - assets/images/task/
         - assets/images/bags/
         - assets/images/popup_gift/
+        - assets/images/your_team/
+        - assets/images/collectionScreen/
+        - assets/images/back_button/
+        - assets/images/pet_detail_screen/
+        - assets/images/pet_detail_screen/system_pet/
         - assets/svgs/
         - assets/lotties/

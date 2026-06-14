@@ -66,6 +66,14 @@ class CreatureRepository {
     return '$_imageDir/${prefix}_${_stageSuffix[stage] ?? 'baby'}.png';
   }
 
+  /// Đường dẫn ảnh "mảnh ghép" của sinh vật (dùng ở màn nâng sao).
+  /// Trả về null nếu sinh vật chưa có bộ ảnh riêng.
+  static String? puzzleAsset(String id) {
+    final prefix = _imagePrefix[id];
+    if (prefix == null) return null;
+    return '$_imageDir/${prefix}_puzzle.png';
+  }
+
   /// Đường dẫn hoạt ảnh dotLottie ứng viên cho một stage (cùng quy ước tên
   /// với [imageAsset]). Trả về null nếu sinh vật chưa có bộ ảnh riêng.
   ///
