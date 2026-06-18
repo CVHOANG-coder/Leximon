@@ -41,7 +41,7 @@ dependencies:
     path: ^1.9.0
 
     # Text-to-speech (on-device, ONNX)
-    supertonic_flutter: ^1.0.0
+    supertonic_flutter: ^2.0.0
     audioplayers: ^6.1.0
     path_provider: ^2.1.5
 
@@ -72,3 +72,4 @@ flutter:
         - assets/images/popup_gift/
         - assets/svgs/
         - assets/lotties/
+        - assets/lotties/enemy/

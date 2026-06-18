@@ -1,0 +1,90 @@
+{
+  "battleConfig": {
+    "enabled": true,
+    "bossHpFormula": {
+      "formula": "recommendedQuestionCount * baseDamageTarget * hpMultiplier",
+      "baseDamageTarget": 10
+    },
+    "difficultyHpMultiplier": {
+      "easy": 0.9,
+      "normal": 1.0,
+      "hard": 1.15,
+      "boss": 1.3,
+      "elite_boss": 1.5
+    },
+    "questionDamage": {
+      "imageChoice": 8,
+      "meaningChoice": 10,
+      "listeningChoice": 12,
+      "wordArrangement": 14,
+      "sentenceFill": 14,
+      "typingAnswer": 18
+    },
+    "comboBonus": [
+      {
+        "comboMin": 3,
+        "damageMultiplier": 1.1
+      },
+      {
+        "comboMin": 5,
+        "damageMultiplier": 1.2
+      },
+      {
+        "comboMin": 10,
+        "damageMultiplier": 1.35
+      }
+    ],
+    "wrongAnswerPenalty": {
+      "easy": {
+        "heartDamage": 0,
+        "bossShieldGain": 0,
+        "comboReset": true
+      },
+      "normal": {
+        "heartDamage": 1,
+        "bossShieldGain": 0,
+        "comboReset": true
+      },
+      "hard": {
+        "heartDamage": 1,
+        "bossShieldGain": 5,
+        "comboReset": true
+      },
+      "boss": {
+        "heartDamage": 1,
+        "bossShieldGain": 10,
+        "comboReset": true
+      },
+      "elite_boss": {
+        "heartDamage": 1,
+        "bossShieldGain": 15,
+        "comboReset": true
+      }
+    },
+    "bossShield": {
+      "easy": 0,
+      "normal": 0,
+      "hard": 10,
+      "boss": 25,
+      "elite_boss": 40
+    },
+    "bonusQuestionRule": {
+      "enabled": true,
+      "maxBonusQuestions": 3,
+      "triggerWhenBossHpAbove": 0,
+      "requiredAccuracyToEnterBonus": 70
+    },
+    "victoryRule": {
+      "bossDefeated": true,
+      "allowVictoryByAccuracy": true,
+      "minimumAccuracyPercent": 70
+    },
+    "ultimateCharge": {
+      "correctAnswer": 10,
+      "combo5Bonus": 5,
+      "perfectAnswerBonus": 5,
+      "wrongAnswer": 0,
+      "maxEnergy": 100
+    }
+  }
+}
