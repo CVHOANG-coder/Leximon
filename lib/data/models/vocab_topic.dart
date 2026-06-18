@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'enemy.dart';
+
 /// A vocabulary topic from lib/data/sample/topics_with_stage_difficulty.json.
 class VocabTopic extends Equatable {
   const VocabTopic({
@@ -47,6 +49,7 @@ class VocabStage extends Equatable {
     required this.wordCount,
     required this.words,
     required this.recommendedQuestionCount,
+    this.enemy,
   });
 
   final int stage;
@@ -59,6 +62,9 @@ class VocabStage extends Equatable {
 
   /// Số câu hỏi mục tiêu cho chặng, lấy thẳng từ JSON.
   final int recommendedQuestionCount;
+
+  /// Enemy của chặng (object `enemy` trong JSON); null nếu chặng chưa khai báo.
+  final Enemy? enemy;
 
   bool get isFinalReview => type == 'final_review';
   bool get isLearn => type == 'learn';
@@ -73,9 +79,12 @@ class VocabStage extends Equatable {
             w as String,
         ],
         recommendedQuestionCount: json['recommendedQuestionCount'] as int? ?? 0,
+        enemy: json['enemy'] is Map<String, dynamic>
+            ? Enemy.fromJson(json['enemy'] as Map<String, dynamic>)
+            : null,
       );
 
   @override
   List<Object?> get props =>
-      [stage, type, title, wordCount, words, recommendedQuestionCount];
+      [stage, type, title, wordCount, words, recommendedQuestionCount, enemy];
 }

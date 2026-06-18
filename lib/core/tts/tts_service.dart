@@ -9,9 +9,9 @@ import 'package:supertonic_flutter/supertonic_flutter.dart';
 /// Phát âm từ vựng bằng Supertonic TTS (on-device, ONNX).
 ///
 /// - Mỗi lượt phát chọn ngẫu nhiên một trong 10 giọng đọc (M1–M5, F1–F5).
-/// - Lần chạy đầu package tự tải model (~268MB) từ HuggingFace về cache;
-///   trong lúc tải / nếu lỗi, [speak] im lặng bỏ qua nên không ảnh hưởng
-///   màn chơi.
+/// - Lần chạy đầu package tự tải model Supertonic 3 (~400MB) từ HuggingFace
+///   về cache (`supertonic_models_v3`); trong lúc tải / nếu lỗi, [speak] im
+///   lặng bỏ qua nên không ảnh hưởng màn chơi.
 /// - Kết quả tổng hợp được cache theo (giọng, văn bản) để đọc lại tức thì.
 class TtsService {
   TtsService._();

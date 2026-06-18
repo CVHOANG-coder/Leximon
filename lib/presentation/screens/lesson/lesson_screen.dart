@@ -2,9 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../core/tts/tts_service.dart';
+import '../../../data/models/battle_config.dart';
 import '../../../data/models/context_sentence.dart';
+import '../../../data/models/enemy.dart';
 import '../../../data/models/vocab_topic.dart';
 import '../../../data/models/vocab_word.dart';
 import '../../../data/repositories/inventory_repository.dart';
@@ -30,6 +33,11 @@ const _kOptionBadgeColors = [
   Color(0xFFF5A623), // orange
   Color(0xFF9C27B0), // purple
 ];
+
+/// Thời lượng một lượt enemy phản công (lottie `mini2_attack.json`). Dùng
+/// chung để canh việc chuyển câu khi trả lời sai sao cho không cắt ngang
+/// hoạt ảnh tấn công.
+const _kEnemyAttackMs = 1300;
 
 // ─── Quiz / stage models ──────────────────────────────────────────────────────
 
@@ -94,6 +102,7 @@ class _Stage {
     required this.words,
     required this.targetCount,
     required this.label,
+    required this.enemy,
   });
 
   final _StageKind kind;
@@ -108,6 +117,9 @@ class _Stage {
   final int targetCount;
 
   final String label;
+
+  /// Enemy của chặng (từ JSON). Có thể null nếu JSON chưa khai báo.
+  final Enemy? enemy;
 
   int get wordCount => words.length;
 }
@@ -142,7 +154,6 @@ class _LessonScreenState extends State<LessonScreen> {
   int _qIdx = 0;
   int _score = 0;
   int? _selectedIdx;
-  int _hintsLeft = 3;
   final Set<int> _hiddenOptions = {};
 
   // Trạng thái dạng sắp xếp (anagram / sentenceOrder):
@@ -154,16 +165,38 @@ class _LessonScreenState extends State<LessonScreen> {
   /// Câu ngữ cảnh của chủ đề, nhóm theo từ đáp án (chữ thường).
   Map<String, List<ContextSentence>> _sentences = const {};
 
+  // ── Trạng thái battle (xem enemy_battle_mechanism.md) ──────────────────────
+  BattleConfig _battle = BattleConfig.fallback;
+
+  /// Enemy của chặng đang chơi.
+  Enemy? _enemy;
+  int _enemyMaxHp = 1;
+  int _enemyHp = 1;
+  int _enemyShield = 0;
+
+  /// Chuỗi trả lời đúng liên tiếp (combo) → nhân damage.
+  int _combo = 0;
+
+  /// Difficulty của chặng (easy/normal/hard/boss/elite_boss) cho hình phạt sai.
+  String _difficulty = 'easy';
+
+  /// Damage của đòn vừa đánh + bộ đếm để kích lại hiệu ứng số bay lên.
+  int _lastDamage = 0;
+  int _hitTick = 0;
+
+  /// Bộ đếm tăng mỗi khi trả lời sai → enemy phản công (mini2_attack.json)
+  /// kèm hiệu ứng sấm chớp toàn màn hình.
+  int _attackTick = 0;
+
   bool get _answered => _selectedIdx != null || _arrangeChecked;
   _Question get _question => _questions[_qIdx];
 
   /// Số từ đã học = tổng từ của các chặng "Học" đã hoàn thành.
   int get _learnedWords => [
-        for (var i = 0; i < _stages.length; i++)
-          if (_completedStages.contains(i) &&
-              _stages[i].kind == _StageKind.learn)
-            _stages[i].wordCount,
-      ].fold(0, (a, b) => a + b);
+    for (var i = 0; i < _stages.length; i++)
+      if (_completedStages.contains(i) && _stages[i].kind == _StageKind.learn)
+        _stages[i].wordCount,
+  ].fold(0, (a, b) => a + b);
 
   @override
   void initState() {
@@ -196,8 +229,10 @@ class _LessonScreenState extends State<LessonScreen> {
       final topic = await repo.topicById(widget.topicId);
       final words = await repo.wordsForTopic(widget.topicId);
       final sentences = await repo.sentencesForTopic(widget.topicId);
-      final savedStages =
-          await ProgressRepository.instance.getStagesForTopic(widget.topicId);
+      final savedStages = await ProgressRepository.instance.getStagesForTopic(
+        widget.topicId,
+      );
+      _battle = await BattleConfig.load();
       if (!mounted) return;
       if (topic == null || words.length < 4) {
         setState(() {
@@ -240,9 +275,7 @@ class _LessonScreenState extends State<LessonScreen> {
   /// từ vựng và `recommendedQuestionCount` trực tiếp từ JSON; `final_review`
   /// (JSON không liệt kê từ) ôn toàn bộ chủ đề.
   List<_Stage> _buildStages(VocabTopic topic, List<VocabWord> words) {
-    final byWord = {
-      for (final w in words) w.word.toLowerCase(): w,
-    };
+    final byWord = {for (final w in words) w.word.toLowerCase(): w};
     final indexOf = {
       for (var i = 0; i < words.length; i++) words[i].word.toLowerCase(): i,
     };
@@ -253,9 +286,7 @@ class _LessonScreenState extends State<LessonScreen> {
       if (s.isFinalReview || s.words.isEmpty) {
         pool = List.of(words);
       } else {
-        pool = [
-          for (final raw in s.words) ?byWord[raw.toLowerCase()],
-        ];
+        pool = [for (final raw in s.words) ?byWord[raw.toLowerCase()]];
       }
       if (pool.isEmpty) continue;
 
@@ -263,15 +294,18 @@ class _LessonScreenState extends State<LessonScreen> {
           ? _StageKind.learn
           : (s.isFinalReview ? _StageKind.finalReview : _StageKind.review);
 
-      stages.add(_Stage(
-        kind: kind,
-        type: s.type,
-        words: pool,
-        targetCount: s.recommendedQuestionCount > 0
-            ? s.recommendedQuestionCount
-            : pool.length,
-        label: _stageLabel(kind, pool, indexOf),
-      ));
+      stages.add(
+        _Stage(
+          kind: kind,
+          type: s.type,
+          words: pool,
+          targetCount: s.recommendedQuestionCount > 0
+              ? s.recommendedQuestionCount
+              : pool.length,
+          label: _stageLabel(kind, pool, indexOf),
+          enemy: s.enemy,
+        ),
+      );
     }
     return stages;
   }
@@ -285,9 +319,7 @@ class _LessonScreenState extends State<LessonScreen> {
   ) {
     if (kind == _StageKind.finalReview) return 'Ôn cuối';
     final prefix = kind == _StageKind.learn ? 'Học' : 'Ôn';
-    final idxs = [
-      for (final w in pool) ?indexOf[w.word.toLowerCase()],
-    ];
+    final idxs = [for (final w in pool) ?indexOf[w.word.toLowerCase()]];
     if (idxs.isEmpty) return prefix;
     idxs.sort();
     return '$prefix ${idxs.first + 1}-${idxs.last + 1}';
@@ -301,7 +333,8 @@ class _LessonScreenState extends State<LessonScreen> {
     // nếu thiếu, cắt nếu thừa, để khớp số câu mục tiêu.
     if (stage.kind == _StageKind.learn) {
       return [
-        for (var i = 0; i < target; i++) _buildMeaningQuestion(pool[i % pool.length]),
+        for (var i = 0; i < target; i++)
+          _buildMeaningQuestion(pool[i % pool.length]),
       ];
     }
 
@@ -317,7 +350,10 @@ class _LessonScreenState extends State<LessonScreen> {
     return [
       for (var i = 0; i < target; i++)
         _buildReviewQuestion(
-            pool[i % pool.length], cycle[i % cycle.length], usedSentences),
+          pool[i % pool.length],
+          cycle[i % cycle.length],
+          usedSentences,
+        ),
     ];
   }
 
@@ -331,15 +367,18 @@ class _LessonScreenState extends State<LessonScreen> {
     final order = switch (desired) {
       _QKind.meaning => const [_QKind.meaning],
       _QKind.listening => const [_QKind.listening],
-      _QKind.fillBlank =>
-        const [_QKind.fillBlank, _QKind.anagram, _QKind.listening],
+      _QKind.fillBlank => const [
+        _QKind.fillBlank,
+        _QKind.anagram,
+        _QKind.listening,
+      ],
       _QKind.anagram => const [_QKind.anagram, _QKind.listening],
       _QKind.sentenceOrder => const [
-          _QKind.sentenceOrder,
-          _QKind.fillBlank,
-          _QKind.anagram,
-          _QKind.listening,
-        ],
+        _QKind.sentenceOrder,
+        _QKind.fillBlank,
+        _QKind.anagram,
+        _QKind.listening,
+      ],
     };
     for (final kind in order) {
       final q = switch (kind) {
@@ -347,8 +386,10 @@ class _LessonScreenState extends State<LessonScreen> {
         _QKind.listening => _buildListeningQuestion(word),
         _QKind.fillBlank => _buildFillBlankQuestion(word, usedSentences),
         _QKind.anagram => _buildAnagramQuestion(word),
-        _QKind.sentenceOrder =>
-          _buildSentenceOrderQuestion(word, usedSentences),
+        _QKind.sentenceOrder => _buildSentenceOrderQuestion(
+          word,
+          usedSentences,
+        ),
       };
       if (q != null) return q;
     }
@@ -360,10 +401,8 @@ class _LessonScreenState extends State<LessonScreen> {
     final distractors =
         _allWords.where((w) => w.meaning != word.meaning).toList()
           ..shuffle(_rng);
-    final options = [
-      word.meaning,
-      ...distractors.take(3).map((w) => w.meaning),
-    ]..shuffle(_rng);
+    final options = [word.meaning, ...distractors.take(3).map((w) => w.meaning)]
+      ..shuffle(_rng);
     return _Question(
       kind: _QKind.meaning,
       word: word,
@@ -377,10 +416,8 @@ class _LessonScreenState extends State<LessonScreen> {
     final distractors = _allWords.where((w) => w.word != word.word).toList()
       ..shuffle(_rng);
     if (distractors.length < 3) return null;
-    final options = [
-      word.word,
-      ...distractors.take(3).map((w) => w.word),
-    ]..shuffle(_rng);
+    final options = [word.word, ...distractors.take(3).map((w) => w.word)]
+      ..shuffle(_rng);
     return _Question(
       kind: _QKind.listening,
       word: word,
@@ -407,10 +444,8 @@ class _LessonScreenState extends State<LessonScreen> {
       ..shuffle(_rng);
     if (distractors.length < 3) return null;
     used.add(c.sentence);
-    final options = [
-      word.word,
-      ...distractors.take(3).map((w) => w.word),
-    ]..shuffle(_rng);
+    final options = [word.word, ...distractors.take(3).map((w) => w.word)]
+      ..shuffle(_rng);
     return _Question(
       kind: _QKind.fillBlank,
       word: word,
@@ -476,30 +511,80 @@ class _LessonScreenState extends State<LessonScreen> {
       _completedStages.contains(idx - 1);
 
   void _startStage(int idx) {
+    final stage = _stages[idx];
+    final enemy = stage.enemy;
     setState(() {
       _stageIdx = idx;
-      _questions = _buildQuestions(_stages[idx], idx);
+      _questions = _buildQuestions(stage, idx);
       _qIdx = 0;
       _score = 0;
       _selectedIdx = null;
-      _hintsLeft = 3;
       _hiddenOptions.clear();
       _placed.clear();
       _arrangeChecked = false;
       _arrangeCorrect = false;
+      // Khởi tạo trận đánh enemy của chặng.
+      _enemy = enemy;
+      _enemyMaxHp = (enemy?.maxHp ?? 1).clamp(1, 1 << 30);
+      _enemyHp = (enemy?.hp ?? _enemyMaxHp).clamp(0, _enemyMaxHp);
+      _enemyShield = enemy?.shield ?? 0;
+      _combo = 0;
+      _lastDamage = 0;
+      _difficulty = difficultyFor(
+        stageType: stage.type,
+        stageIndex: idx,
+        totalStages: _stages.length,
+      );
     });
     _scrollToStage(idx);
     _autoPlayIfListening();
   }
 
+  /// Trả lời đúng → cộng combo, tính damage (theo loại câu × hệ số combo),
+  /// trừ shield trước rồi mới trừ HP enemy. Xem enemy_battle_mechanism.md.
+  void _registerHit(_QKind kind) {
+    if (_enemy == null) return;
+    _combo++;
+    final base = _battle.damageFor(_damageKey(kind));
+    final damage = (base * _battle.comboMultiplier(_combo)).round();
+    var remaining = damage;
+    if (_enemyShield > 0) {
+      final blocked = math.min(_enemyShield, remaining);
+      _enemyShield -= blocked;
+      remaining -= blocked;
+    }
+    _enemyHp = (_enemyHp - remaining).clamp(0, _enemyMaxHp);
+    _lastDamage = damage;
+    _hitTick++;
+  }
+
+  /// Trả lời sai → enemy phản công (lottie attack + sấm chớp toàn màn hình),
+  /// reset combo, enemy nhận thêm shield theo difficulty.
+  void _registerMiss() {
+    _attackTick++;
+    if (_enemy == null) return;
+    _combo = 0;
+    _enemyShield += _battle.penaltyFor(_difficulty).shieldGain;
+  }
+
+  /// Map loại câu hỏi sang khóa damage trong battle_config.json.
+  String _damageKey(_QKind kind) => switch (kind) {
+    _QKind.meaning => 'meaningChoice',
+    _QKind.listening => 'listeningChoice',
+    _QKind.fillBlank => 'sentenceFill',
+    _QKind.anagram => 'wordArrangement',
+    _QKind.sentenceOrder => 'wordArrangement',
+  };
+
   void _scrollToStage(int idx) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_stageScroll.hasClients) return;
       const stageExtent = 96.0;
-      final target = (idx * stageExtent -
-              _stageScroll.position.viewportDimension / 2 +
-              stageExtent / 2)
-          .clamp(0.0, _stageScroll.position.maxScrollExtent);
+      final target =
+          (idx * stageExtent -
+                  _stageScroll.position.viewportDimension / 2 +
+                  stageExtent / 2)
+              .clamp(0.0, _stageScroll.position.maxScrollExtent);
       _stageScroll.animateTo(
         target,
         duration: const Duration(milliseconds: 350),
@@ -511,10 +596,8 @@ class _LessonScreenState extends State<LessonScreen> {
   Future<void> _onStageTap(int idx) async {
     if (idx == _stageIdx || !_isUnlocked(idx)) return;
     // Có tiến độ dở (đã trả ít nhất 1 câu / đang xếp từ) → hỏi xác nhận.
-    final inProgress = _qIdx > 0 ||
-        _score > 0 ||
-        _placed.isNotEmpty ||
-        _selectedIdx != null;
+    final inProgress =
+        _qIdx > 0 || _score > 0 || _placed.isNotEmpty || _selectedIdx != null;
     if (inProgress) {
       final confirm = await showDialog<bool>(
         context: context,
@@ -531,7 +614,12 @@ class _LessonScreenState extends State<LessonScreen> {
     final correct = idx == _question.correctIdx;
     setState(() {
       _selectedIdx = idx;
-      if (correct) _score++;
+      if (correct) {
+        _score++;
+        _registerHit(_question.kind);
+      } else {
+        _registerMiss();
+      }
     });
     // Lưu thống kê đúng/sai của từ vào SQLite (không chặn UI).
     ProgressRepository.instance.recordAnswer(
@@ -539,7 +627,11 @@ class _LessonScreenState extends State<LessonScreen> {
       word: _question.word.word,
       correct: correct,
     );
-    Future.delayed(const Duration(milliseconds: 1000), _next);
+    // Sai → chờ enemy đánh trả xong (lottie attack) rồi mới sang câu mới.
+    Future.delayed(
+      Duration(milliseconds: correct ? 1000 : _kEnemyAttackMs + 250),
+      _next,
+    );
   }
 
   // ── Dạng sắp xếp: đặt / gỡ thẻ ────────────────────────────────────────────
@@ -567,14 +659,23 @@ class _LessonScreenState extends State<LessonScreen> {
     setState(() {
       _arrangeChecked = true;
       _arrangeCorrect = correct;
-      if (correct) _score++;
+      if (correct) {
+        _score++;
+        _registerHit(q.kind);
+      } else {
+        _registerMiss();
+      }
     });
     ProgressRepository.instance.recordAnswer(
       topicId: widget.topicId,
       word: q.word.word,
       correct: correct,
     );
-    Future.delayed(const Duration(milliseconds: 1300), _next);
+    // Sai → chờ enemy đánh trả xong (lottie attack) rồi mới sang câu mới.
+    Future.delayed(
+      Duration(milliseconds: correct ? 1300 : _kEnemyAttackMs + 250),
+      _next,
+    );
   }
 
   void _next() {
@@ -592,35 +693,6 @@ class _LessonScreenState extends State<LessonScreen> {
       _arrangeCorrect = false;
     });
     _autoPlayIfListening();
-  }
-
-  void _useHint() {
-    if (_hintsLeft <= 0 || _answered || _loading || _error != null) return;
-    if (_question.isChoice) {
-      // Ẩn bớt 2 đáp án sai.
-      final wrong = [
-        for (var i = 0; i < _question.options.length; i++)
-          if (i != _question.correctIdx && !_hiddenOptions.contains(i)) i,
-      ]..shuffle(_rng);
-      setState(() {
-        _hintsLeft--;
-        _hiddenOptions.addAll(wrong.take(2));
-      });
-      return;
-    }
-    // Dạng sắp xếp: tự đặt thẻ đúng tiếp theo vào ô trống.
-    final q = _question;
-    final needed = q.answerTokens[_placed.length];
-    for (var i = 0; i < q.tokens.length; i++) {
-      if (!_placed.contains(i) && q.tokens[i] == needed) {
-        setState(() {
-          _hintsLeft--;
-          _placed.add(i);
-        });
-        if (_placed.length == q.answerTokens.length) _checkArrange();
-        return;
-      }
-    }
   }
 
   Future<void> _showResult() async {
@@ -768,20 +840,16 @@ class _LessonScreenState extends State<LessonScreen> {
 
   /// Nền gradient mặc định: trời xanh → tán lá → cỏ đậm.
   Widget _defaultBackground(Widget child) => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF59A7E8),
-              Color(0xFF7FBF6A),
-              Color(0xFF3F7E33),
-            ],
-            stops: [0.0, 0.45, 1.0],
-          ),
-        ),
-        child: child,
-      );
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF59A7E8), Color(0xFF7FBF6A), Color(0xFF3F7E33)],
+        stops: [0.0, 0.45, 1.0],
+      ),
+    ),
+    child: child,
+  );
 
   /// Nền theo đảo: dùng `<đảo>/background_game_play.png` nếu có,
   /// nếu không (chưa map đảo hoặc ảnh lỗi) thì về nền gradient mặc định.
@@ -804,25 +872,31 @@ class _LessonScreenState extends State<LessonScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _background(
-        SafeArea(
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                )
-              : _error != null
+      body: Stack(
+        children: [
+          _background(
+            SafeArea(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                  : _error != null
                   ? _ErrorView(message: _error!)
                   : _questions.isEmpty
-                      ? const SizedBox.shrink()
-                      : Column(
-                          children: [
-                            _buildHeader(),
-                            Expanded(child: _buildPlayArea()),
-                            _buildStageTrack(),
-                            _buildTopicProgress(),
-                          ],
-                        ),
-        ),
+                  ? const SizedBox.shrink()
+                  : Column(
+                      children: [
+                        _buildHeader(),
+                        Expanded(child: _buildPlayArea()),
+                        _buildStageTrack(),
+                        _buildTopicProgress(),
+                      ],
+                    ),
+            ),
+          ),
+          // Sấm chớp toàn màn hình khi enemy phản công (trả lời sai).
+          Positioned.fill(child: _FullScreenLightning(tick: _attackTick)),
+        ],
       ),
     );
   }
@@ -862,11 +936,7 @@ class _LessonScreenState extends State<LessonScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorder, width: 2),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 5,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -898,8 +968,11 @@ class _LessonScreenState extends State<LessonScreen> {
               color: _kGold,
               border: Border.all(color: const Color(0xFFB98300), width: 2),
             ),
-            child:
-                const Icon(Icons.star_rounded, color: Colors.white, size: 16),
+            child: const Icon(
+              Icons.star_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
           ),
         ],
       ),
@@ -907,63 +980,162 @@ class _LessonScreenState extends State<LessonScreen> {
   }
 
   Widget _buildPlayArea() {
-    return Stack(
+    return Column(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Cột trái: panel Đội hình + linh vật
-            Padding(
-              padding: const EdgeInsets.only(left: 10, top: 14),
-              child: Column(
+        _buildArena(),
+        // Vùng câu hỏi + đáp án (cuộn được).
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+            child: Column(
+              children: [
+                _buildQuestionCard(),
+                const SizedBox(height: 12),
+                if (_question.isChoice)
+                  _buildOptionGrid()
+                else
+                  _buildArrangeArea(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Đấu trường: enemy trong khung tròn + thanh HP/tên đè lên đỉnh khung,
+  /// cụm đội hình bên trái.
+  Widget _buildArena() {
+    // Kích thước khung tròn enemy + phần header nhô lên đỉnh khung.
+    const frame = 176.0;
+    const headerTop = 6.0;
+    return SizedBox(
+      height: 210,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Khung tròn chứa enemy (ảnh lottie phủ kín khung).
+          Positioned(
+            right: 6,
+            top: 210 - frame - 2,
+            width: frame,
+            height: frame,
+            child: _EnemyFrame(
+              child: _EnemyVisual(hitTick: _hitTick, attackTick: _attackTick),
+            ),
+          ),
+          // Hiệu ứng tấn công (chớp / nổ / tia điện) phủ trên khung enemy.
+          Positioned(
+            right: 6,
+            top: 210 - frame - 2,
+            width: frame,
+            height: frame,
+            child: _HitEffectOverlay(hitTick: _hitTick),
+          ),
+          // Số damage bay lên mỗi khi đánh trúng (giữa đỉnh khung).
+          if (_lastDamage > 0)
+            Positioned(
+              right: 6 + frame / 2 - 16,
+              top: 210 - frame + 16,
+              child: _DamageFloat(key: ValueKey(_hitTick), damage: _lastDamage),
+            ),
+          // Thanh tên + cấp + HP (gọn), căn giữa và đè lên đỉnh khung.
+          Positioned(
+            right: 6 + frame / 2 - 66,
+            top: headerTop,
+            width: 132,
+            child: _EnemyHeader(
+              name: _enemy?.name ?? 'Enemy',
+              level: _enemy?.level ?? 1,
+              hp: _enemyHp,
+              maxHp: _enemyMaxHp,
+              shield: _enemyShield,
+            ),
+          ),
+          // Badge combo (góc phải khung, như ảnh tham khảo).
+          if (_combo >= 2)
+            Positioned(
+              right: 0,
+              top: 210 - frame + 64,
+              child: _ComboBadge(combo: _combo),
+            ),
+          // Cụm đội hình: nút paw "Đội hình" + bảng pet.
+          Positioned(
+            left: 8,
+            top: 10,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DoiHinhButton(onTap: _showTeamFormation),
+                const SizedBox(width: 6),
+                const _TeamPanel(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Popup đội hình (tạm thời) — hệ thống pet sẽ nối sau.
+  void _showTeamFormation() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _kCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Đội hình',
+                style: TextStyle(
+                  color: _kInk,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Chọn và nâng cấp linh thú cho trận đánh.\nTính năng sẽ sớm được cập nhật!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kInk,
+                  fontSize: 14,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const _TeamPanel(),
-                  const Spacer(),
-                  Text(
-                    '🦊',
-                    style: TextStyle(
-                      fontSize: 46,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                  for (final (emoji, lv) in _TeamPanel.pets)
+                    Column(
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 40)),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Lv. $lv',
+                          style: const TextStyle(
+                            color: _kInk,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 4),
                 ],
               ),
-            ),
-            // Vùng câu hỏi + đáp án
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(10, 6, 14, 8),
-                child: Column(
-                  children: [
-                    _buildQuestionCard(),
-                    const SizedBox(height: 16),
-                    if (_question.isChoice)
-                      for (var i = 0; i < _question.options.length; i++) ...[
-                        _buildOption(i),
-                        const SizedBox(height: 10),
-                      ]
-                    else
-                      _buildArrangeArea(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        Positioned(
-          right: 10,
-          bottom: 6,
-          child: _HintButton(count: _hintsLeft, onTap: _useHint),
-        ),
-      ],
+      ),
     );
   }
 
@@ -973,11 +1145,11 @@ class _LessonScreenState extends State<LessonScreen> {
       children: [
         Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(top: 14),
-          padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
           decoration: BoxDecoration(
             color: _kCream,
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _kBorder, width: 2.5),
             boxShadow: const [
               BoxShadow(
@@ -1009,8 +1181,7 @@ class _LessonScreenState extends State<LessonScreen> {
                 color: _kCream,
                 border: Border.all(color: _kBorder, width: 2),
               ),
-              child:
-                  const Icon(Icons.star_rounded, color: _kGold, size: 20),
+              child: const Icon(Icons.star_rounded, color: _kGold, size: 20),
             ),
           ),
         ),
@@ -1021,40 +1192,36 @@ class _LessonScreenState extends State<LessonScreen> {
   // ── Nội dung thẻ câu hỏi theo từng dạng chơi ──────────────────────────────
 
   static Widget _cardCaption(String text) => Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: _kInk,
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-        ),
-      );
+    text,
+    textAlign: TextAlign.center,
+    style: const TextStyle(
+      color: _kInk,
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+    ),
+  );
 
   /// Nút phát âm: đọc từ của câu hỏi hiện tại bằng giọng ngẫu nhiên.
   Widget _speakerButton(double size) => GestureDetector(
-        onTap: _speakWord,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _kBlue,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Icon(
-            Icons.volume_up_rounded,
-            color: Colors.white,
-            size: size * 0.52,
-          ),
-        ),
-      );
+    onTap: _speakWord,
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _kBlue,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Icon(
+        Icons.volume_up_rounded,
+        color: Colors.white,
+        size: size * 0.52,
+      ),
+    ),
+  );
 
   /// Chọn nghĩa tiếng Việt đúng.
   Widget _buildMeaningCard() {
@@ -1066,22 +1233,22 @@ class _LessonScreenState extends State<LessonScreen> {
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: _kInk,
-            fontSize: 38,
+            fontSize: 28,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           '${word.phonetic} (${word.pos})',
           style: TextStyle(
             color: _kInk.withValues(alpha: 0.55),
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 14),
-        _speakerButton(54),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        _speakerButton(42),
+        const SizedBox(height: 8),
         _cardCaption('Chọn nghĩa tiếng Việt đúng'),
       ],
     );
@@ -1093,37 +1260,37 @@ class _LessonScreenState extends State<LessonScreen> {
     final word = _question.word;
     return Column(
       children: [
-        _speakerButton(84),
-        const SizedBox(height: 8),
+        _speakerButton(60),
+        const SizedBox(height: 6),
         Text(
           'Chạm loa để nghe lại',
           style: TextStyle(
             color: _kInk.withValues(alpha: 0.45),
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
         ),
         if (_answered) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             word.word.toLowerCase(),
             style: const TextStyle(
               color: _kGreen,
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             word.phonetic,
             style: TextStyle(
               color: _kInk.withValues(alpha: 0.55),
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         _cardCaption('Nghe âm thanh và chọn từ đúng'),
       ],
     );
@@ -1139,13 +1306,13 @@ class _LessonScreenState extends State<LessonScreen> {
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: _kInk,
-            fontSize: 26,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Container(height: 2, color: _kCreamDark),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _cardCaption('Chọn từ còn thiếu trong câu'),
         if (_answered) ...[
           const SizedBox(height: 8),
@@ -1220,8 +1387,8 @@ class _LessonScreenState extends State<LessonScreen> {
     final slotBorder = !_arrangeChecked
         ? _kBorder
         : _arrangeCorrect
-            ? _kGreen
-            : _kRed;
+        ? _kGreen
+        : _kRed;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1230,11 +1397,7 @@ class _LessonScreenState extends State<LessonScreen> {
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: slotBorder, width: 2.5),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -1262,8 +1425,9 @@ class _LessonScreenState extends State<LessonScreen> {
             _SentenceLine(
               words: [for (final i in _placed) q.tokens[i]],
               borderColor: slotBorder,
-              onTapRemoveLast:
-                  _placed.isEmpty ? null : () => _onSlotTap(_placed.length - 1),
+              onTapRemoveLast: _placed.isEmpty
+                  ? null
+                  : () => _onSlotTap(_placed.length - 1),
             ),
           const SizedBox(height: 16),
           // Các thẻ để chọn.
@@ -1298,6 +1462,27 @@ class _LessonScreenState extends State<LessonScreen> {
     );
   }
 
+  /// Lưới đáp án 2×2 cho câu hỏi dạng chọn (luôn có 4 lựa chọn).
+  Widget _buildOptionGrid() {
+    final n = _question.options.length;
+    Widget row(int a, int b) => IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _buildOption(a)),
+          const SizedBox(width: 10),
+          if (b < n) Expanded(child: _buildOption(b)) else const Spacer(),
+        ],
+      ),
+    );
+    return Column(
+      children: [
+        row(0, 1),
+        if (n > 2) ...[const SizedBox(height: 10), row(2, 3)],
+      ],
+    );
+  }
+
   Widget _buildOption(int idx) {
     final hidden = _hiddenOptions.contains(idx);
     final isCorrect = idx == _question.correctIdx;
@@ -1318,71 +1503,80 @@ class _LessonScreenState extends State<LessonScreen> {
       opacity: hidden ? 0.25 : 1,
       child: GestureDetector(
         onTap: () => _onSelect(idx),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: border, width: 2.5),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(0, 2),
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 50),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: border, width: 2.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _kOptionBadgeColors[idx % _kOptionBadgeColors.length],
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 3,
-                      offset: Offset(0, 1),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          _kOptionBadgeColors[idx % _kOptionBadgeColors.length],
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Text(
-                  '${idx + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    child: Text(
+                      '${idx + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _question.options[idx],
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _kInk,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      _question.options[idx],
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _kInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+            ),
+            // Dấu đúng/sai ở góc phải ô.
+            if (_answered && (isCorrect || (isSelected && !isCorrect)))
+              Positioned(
+                top: 3,
+                right: 5,
+                child: Icon(
+                  isCorrect ? Icons.check_circle : Icons.cancel,
+                  size: 18,
+                  color: isCorrect ? _kGreen : _kRed,
                 ),
               ),
-              SizedBox(
-                width: 26,
-                child: _answered && isCorrect
-                    ? const Icon(Icons.check_circle, color: _kGreen)
-                    : _answered && isSelected && !isCorrect
-                        ? const Icon(Icons.cancel, color: _kRed)
-                        : null,
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -1477,77 +1671,981 @@ class _LessonScreenState extends State<LessonScreen> {
   }
 }
 
-// ─── Đội hình panel (trang trí — hệ thống pet sẽ nối sau) ─────────────────────
+// ─── Battle: enemy + đội hình (hệ thống pet sẽ nối sau) ───────────────────────
 
+/// Nút mở popup đội hình — dấu chân thú + nhãn "Đội hình" (kiểu nút gỗ).
+class _DoiHinhButton extends StatelessWidget {
+  const _DoiHinhButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 50,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: _kCream,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder, width: 2),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pets_rounded, color: Color(0xFF8A5A2B), size: 26),
+            SizedBox(height: 2),
+            Text(
+              'Đội hình',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _kInk,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bảng pet trong đội hình (trang trí — hệ thống pet sẽ nối sau).
 class _TeamPanel extends StatelessWidget {
   const _TeamPanel();
 
-  static const _pets = [('🦊', 6), ('🐤', 5), ('🌱', 4)];
+  static const pets = [('🐱', 6), ('🐤', 5), ('🌱', 4)];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 74,
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+      width: 60,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 5),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [Color(0xFFBEE3F5), Color(0xFF8FC7E8)],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF6FA8CC), width: 2),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Đội hình',
-            style: TextStyle(
-              color: _kInk,
-              fontSize: 12,
+          for (final (emoji, lv) in pets) ...[
+            _TeamPetTile(emoji: emoji, level: lv),
+            if (lv != pets.last.$2) const SizedBox(height: 5),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Một ô pet: emoji + nhãn cấp + thanh kinh nghiệm nhỏ.
+class _TeamPetTile extends StatelessWidget {
+  const _TeamPetTile({required this.emoji, required this.level});
+  final String emoji;
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF274B6D),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lv. $level',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                _ProgressBar(progress: level / 10, height: 4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Khung tròn trang trí quanh enemy: viền vàng kim loại + viền trong sẫm +
+/// vignette làm tối mép để enemy nổi bật (ảnh enemy phủ kín khung).
+class _EnemyFrame extends StatelessWidget {
+  const _EnemyFrame({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      // Viền vàng kim loại (sáng trên → sẫm dưới) + đổ bóng tạo chiều sâu.
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFE9A8), Color(0xFFE3A93F), Color(0xFF9B6B22)],
+          stops: [0.0, 0.5, 1.0],
+        ),
+        boxShadow: [
+          BoxShadow(color: Colors.black45, blurRadius: 9, offset: Offset(0, 4)),
+        ],
+      ),
+      padding: const EdgeInsets.all(7),
+      child: Container(
+        // Viền trong sẫm ngăn cách viền vàng với ảnh.
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFF3E2C13),
+        ),
+        padding: const EdgeInsets.all(3),
+        child: ClipOval(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child,
+              // Vignette: tối dần ở mép trong.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0x00000000), Color(0x73000000)],
+                    stops: [0.62, 1.0],
+                  ),
+                ),
+              ),
+              // Đường viền vàng sáng mỏng ở mép trong cho cảm giác bevel.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xCCFFE9A8),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sprite enemy: bình thường chạy `mini2.json` (loop kiểu yoyo). Khi đánh
+/// trúng ([hitTick] đổi) thì nhá đỏ; khi người chơi trả lời sai ([attackTick]
+/// đổi) thì phát một lượt `mini2_attack.json` rồi quay lại loop bình thường.
+class _EnemyVisual extends StatefulWidget {
+  const _EnemyVisual({required this.hitTick, required this.attackTick});
+  final int hitTick;
+  final int attackTick;
+
+  @override
+  State<_EnemyVisual> createState() => _EnemyVisualState();
+}
+
+class _EnemyVisualState extends State<_EnemyVisual>
+    with SingleTickerProviderStateMixin {
+  // Thời lượng một lượt tấn công (ép cố định cho ngắn gọn — lottie gốc dài 6.6s
+  // nên ta tua nhanh qua toàn bộ khung hình trong khoảng này).
+  static const _attackDuration = Duration(milliseconds: _kEnemyAttackMs);
+
+  late final AnimationController _attackCtrl;
+  bool _attacking = false;
+
+  /// Nạp sẵn composition lottie attack (file nặng ~2.8MB, 99 ảnh nhúng) để
+  /// khi trả lời sai có thể phát ngay, không bị trễ giải mã làm "mất" hiệu ứng.
+  LottieComposition? _attackComposition;
+
+  @override
+  void initState() {
+    super.initState();
+    _attackCtrl = AnimationController(vsync: this, duration: _attackDuration);
+    _attackCtrl.addStatusListener((status) {
+      // Hết một lượt tấn công → trở về hoạt ảnh idle.
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _attacking = false);
+      }
+    });
+    _preloadAttack();
+  }
+
+  Future<void> _preloadAttack() async {
+    try {
+      final c = await AssetLottie(
+        'assets/lotties/enemy/mini4_attack.json',
+      ).load();
+      if (mounted) setState(() => _attackComposition = c);
+    } catch (e) {
+      debugPrint('Preload attack lottie failed: $e');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EnemyVisual old) {
+    super.didUpdateWidget(old);
+    if (widget.attackTick != old.attackTick && widget.attackTick > 0) {
+      // Chỉ phát khi composition đã sẵn sàng (đã nạp xong).
+      if (_attackComposition != null) {
+        setState(() => _attacking = true);
+        _attackCtrl.forward(from: 0);
+      } else {
+        // Chưa nạp xong → nạp tiếp, lần sai sau sẽ có.
+        _preloadAttack();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _attackCtrl.dispose();
+    super.dispose();
+  }
+
+  Widget _idleLottie() => Lottie.asset(
+    'assets/lotties/enemy/mini4.json',
+    fit: BoxFit.contain,
+    alignment: Alignment.center,
+    repeat: true,
+    reverse: true,
+    errorBuilder: (_, _, _) =>
+        const Center(child: Text('👾', style: TextStyle(fontSize: 72))),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    // Đang phản công → chiếu thẳng lottie attack đã nạp sẵn (không bọc hiệu
+    // ứng nháy đỏ) để hiển thị tức thì.
+    if (_attacking && _attackComposition != null) {
+      return Lottie(
+        composition: _attackComposition,
+        controller: _attackCtrl,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+      );
+    }
+
+    // Idle: loop bình thường + cú nháy đỏ mỗi khi trúng đòn.
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(widget.hitTick),
+      tween: Tween(begin: widget.hitTick == 0 ? 0 : 1, end: 0),
+      duration: const Duration(milliseconds: 260),
+      builder: (context, t, child) {
+        // t: 1 → 0, tạo cú nảy nhẹ + ánh đỏ khi trúng đòn.
+        return Transform.scale(
+          scale: 1 + 0.06 * t,
+          child: ColorFiltered(
+            colorFilter: ColorFilter.mode(
+              const Color(0xFFE53935).withValues(alpha: 0.55 * t),
+              BlendMode.srcATop,
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: _idleLottie(),
+    );
+  }
+}
+
+/// Lớp phủ hiệu ứng tấn công lên enemy. Mỗi lần [hitTick] đổi (enemy bị trừ
+/// máu) sẽ phát một hiệu ứng ngắn — luân phiên chớp sét / nổ / tia điện.
+class _HitEffectOverlay extends StatefulWidget {
+  const _HitEffectOverlay({required this.hitTick});
+  final int hitTick;
+
+  @override
+  State<_HitEffectOverlay> createState() => _HitEffectOverlayState();
+}
+
+class _HitEffectOverlayState extends State<_HitEffectOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 560),
+    );
+    if (widget.hitTick > 0) _c.forward(from: 0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _HitEffectOverlay old) {
+    super.didUpdateWidget(old);
+    if (widget.hitTick != old.hitTick) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          // Chỉ vẽ khi đang chạy hiệu ứng (0 < t < 1).
+          if (_c.value <= 0 || _c.value >= 1) {
+            return const SizedBox.expand();
+          }
+          return CustomPaint(
+            size: Size.infinite,
+            painter: _HitEffectPainter(
+              progress: _c.value,
+              seed: widget.hitTick,
+              kind: widget.hitTick % 3,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Vẽ hiệu ứng tấn công bằng CustomPainter (không cần asset). [kind]:
+/// 0 = chớp sét, 1 = vụ nổ, 2 = tia điện toả tròn.
+class _HitEffectPainter extends CustomPainter {
+  _HitEffectPainter({
+    required this.progress,
+    required this.seed,
+    required this.kind,
+  });
+
+  /// 0 → 1 theo vòng đời hiệu ứng.
+  final double progress;
+  final int seed;
+  final int kind;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rng = math.Random(seed * 9973 + kind);
+    final center = Offset(size.width * 0.52, size.height * 0.5);
+    final t = progress;
+    final fade = (1 - t).clamp(0.0, 1.0);
+
+    // Lóe sáng trắng ở nhịp đầu (0–30%) tạo cảm giác "trúng đòn".
+    final flashT = (1 - t / 0.3).clamp(0.0, 1.0);
+    if (flashT > 0) {
+      final r = size.shortestSide * (0.32 + 0.22 * (1 - flashT));
+      canvas.drawCircle(
+        center,
+        r,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              Colors.white.withValues(alpha: 0.85 * flashT),
+              Colors.white.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromCircle(center: center, radius: r)),
+      );
+    }
+
+    switch (kind) {
+      case 0:
+        _paintLightning(canvas, size, center, rng, t, fade);
+      case 1:
+        _paintExplosion(canvas, size, center, rng, t, fade);
+      default:
+        _paintSparkBurst(canvas, size, center, rng, t, fade);
+    }
+  }
+
+  /// Đường sét gãy khúc từ [a] đến [b], lệch ngẫu nhiên theo phương vuông góc.
+  Path _bolt(Offset a, Offset b, math.Random rng, int segments, double jitter) {
+    final path = Path()..moveTo(a.dx, a.dy);
+    final dir = b - a;
+    final len = dir.distance;
+    final perp = len == 0 ? Offset.zero : Offset(-dir.dy / len, dir.dx / len);
+    for (var i = 1; i < segments; i++) {
+      final f = i / segments;
+      final base = Offset.lerp(a, b, f)!;
+      final off = (rng.nextDouble() - 0.5) * jitter;
+      path.lineTo(base.dx + perp.dx * off, base.dy + perp.dy * off);
+    }
+    path.lineTo(b.dx, b.dy);
+    return path;
+  }
+
+  void _paintLightning(
+    Canvas canvas,
+    Size size,
+    Offset center,
+    math.Random rng,
+    double t,
+    double fade,
+  ) {
+    // Sét chỉ loé trong ~75% đầu rồi tắt (nhấp nháy nhanh).
+    if (t >= 0.75) return;
+    final flicker = 0.6 + 0.4 * math.sin(t * 40);
+    final glow = Paint()
+      ..color = const Color(0xFF9FD8FF).withValues(alpha: 0.5 * fade * flicker)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    final core = Paint()
+      ..color = Colors.white.withValues(alpha: 0.95 * fade)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final bolts = 1 + rng.nextInt(2);
+    for (var i = 0; i < bolts; i++) {
+      final start = Offset(size.width * (0.35 + rng.nextDouble() * 0.35), -12);
+      final end =
+          center +
+          Offset((rng.nextDouble() - 0.5) * 34, (rng.nextDouble() - 0.5) * 34);
+      final path = _bolt(start, end, rng, 7, size.height * 0.28);
+      canvas.drawPath(path, glow);
+      canvas.drawPath(path, core);
+    }
+  }
+
+  void _paintExplosion(
+    Canvas canvas,
+    Size size,
+    Offset center,
+    math.Random rng,
+    double t,
+    double fade,
+  ) {
+    final maxR = size.shortestSide * 0.55;
+    // Hai vòng xung kích lan ra.
+    for (var k = 0; k < 2; k++) {
+      final rt = (t - k * 0.12).clamp(0.0, 1.0);
+      if (rt <= 0 || rt >= 1) continue;
+      final r = maxR * Curves.easeOut.transform(rt);
+      canvas.drawCircle(
+        center,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6 * (1 - rt)
+          ..color = (k == 0 ? const Color(0xFFFFD24A) : const Color(0xFFFF7A2A))
+              .withValues(alpha: (1 - rt) * 0.85),
+      );
+    }
+    // Lõi nổ hình sao gai, sáng trắng → cam.
+    final burstR = maxR * 0.55 * Curves.easeOut.transform(t.clamp(0.0, 1.0));
+    if (burstR > 1) {
+      const spikes = 11;
+      final path = Path();
+      for (var i = 0; i <= spikes * 2; i++) {
+        final ang = (i / (spikes * 2)) * 2 * math.pi;
+        final rr =
+            (i.isEven ? burstR : burstR * 0.55) *
+            (0.85 + rng.nextDouble() * 0.3);
+        final p = center + Offset(math.cos(ang), math.sin(ang)) * rr;
+        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+      }
+      path.close();
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              Colors.white.withValues(alpha: 0.95 * fade),
+              const Color(0xFFFFB23E).withValues(alpha: 0.8 * fade),
+              const Color(0xFFFF5A1F).withValues(alpha: 0.0),
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(Rect.fromCircle(center: center, radius: burstR)),
+      );
+    }
+    // Mảnh vỡ văng ra.
+    const n = 11;
+    for (var i = 0; i < n; i++) {
+      final ang = (i / n) * 2 * math.pi + rng.nextDouble();
+      final dist =
+          maxR *
+          (0.4 + rng.nextDouble() * 0.7) *
+          Curves.easeOut.transform(t.clamp(0.0, 1.0));
+      final pos = center + Offset(math.cos(ang), math.sin(ang)) * dist;
+      canvas.drawCircle(
+        pos,
+        3.5 * fade + 1,
+        Paint()..color = const Color(0xFFFFC04A).withValues(alpha: fade),
+      );
+    }
+  }
+
+  void _paintSparkBurst(
+    Canvas canvas,
+    Size size,
+    Offset center,
+    math.Random rng,
+    double t,
+    double fade,
+  ) {
+    if (t >= 0.82) return;
+    final maxLen = size.shortestSide * 0.52;
+    final glow = Paint()
+      ..color = const Color(0xFFB6E3FF).withValues(alpha: 0.45 * fade)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    final core = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9 * fade)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    final n = 8 + rng.nextInt(4);
+    for (var i = 0; i < n; i++) {
+      final ang = (i / n) * 2 * math.pi + rng.nextDouble() * 0.5;
+      final len =
+          maxLen *
+          (0.45 + rng.nextDouble() * 0.55) *
+          Curves.easeOut.transform(t.clamp(0.0, 1.0));
+      final end = center + Offset(math.cos(ang), math.sin(ang)) * len;
+      final path = _bolt(center, end, rng, 4, len * 0.3);
+      canvas.drawPath(path, glow);
+      canvas.drawPath(path, core);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_HitEffectPainter old) =>
+      old.progress != progress || old.seed != seed || old.kind != kind;
+}
+
+/// Sấm chớp phủ toàn màn hình khi enemy phản công. Mỗi lần [tick] đổi (trả
+/// lời sai) sẽ loé sáng + giáng vài tia sét xuyên màn hình rồi tắt.
+class _FullScreenLightning extends StatefulWidget {
+  const _FullScreenLightning({required this.tick});
+  final int tick;
+
+  @override
+  State<_FullScreenLightning> createState() => _FullScreenLightningState();
+}
+
+class _FullScreenLightningState extends State<_FullScreenLightning>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    );
+    if (widget.tick > 0) _c.forward(from: 0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FullScreenLightning old) {
+    super.didUpdateWidget(old);
+    if (widget.tick != old.tick) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          if (_c.value <= 0 || _c.value >= 1) return const SizedBox.shrink();
+          return CustomPaint(
+            size: Size.infinite,
+            painter: _FullScreenLightningPainter(
+              progress: _c.value,
+              seed: widget.tick,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Vẽ sấm chớp toàn màn hình: hai nhịp loé trắng + tia sét gãy khúc từ đỉnh
+/// màn hình giáng xuống, pha chút ánh cam (flame).
+class _FullScreenLightningPainter extends CustomPainter {
+  _FullScreenLightningPainter({required this.progress, required this.seed});
+
+  final double progress;
+  final int seed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress;
+    final rng = math.Random(seed * 7919 + 17);
+    final rect = Offset.zero & size;
+
+    // Hai nhịp loé: trắng gắt lúc đầu, nhấp nháy nhẹ giữa hiệu ứng.
+    final flash1 = (1 - t / 0.16).clamp(0.0, 1.0);
+    final flash2 = (t > 0.30 && t < 0.52)
+        ? (1 - (t - 0.30) / 0.22).clamp(0.0, 1.0)
+        : 0.0;
+    final flash = math.max(flash1, flash2 * 0.65);
+    if (flash > 0) {
+      canvas.drawRect(
+        rect,
+        Paint()..color = Colors.white.withValues(alpha: 0.7 * flash),
+      );
+      // Ánh cam ấm (flame) ở mép trên.
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.center,
+            colors: [Color(0x66FF7A2A), Color(0x00FF7A2A)],
+          ).createShader(rect)
+          ..color = const Color(0xFFFF7A2A).withValues(alpha: flash),
+      );
+    }
+
+    // Tia sét giáng xuống trong ~62% đầu.
+    if (t >= 0.62) return;
+    final fade = (1 - t / 0.62).clamp(0.0, 1.0);
+    final flicker = 0.55 + 0.45 * math.sin(t * 46);
+    final glow = Paint()
+      ..color = const Color(0xFFB6E3FF).withValues(alpha: 0.5 * fade * flicker)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 11
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    final core = Paint()
+      ..color = Colors.white.withValues(alpha: 0.95 * fade)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+    final bolts = 3 + rng.nextInt(3);
+    for (var i = 0; i < bolts; i++) {
+      final startX = size.width * rng.nextDouble();
+      final start = Offset(startX, -12);
+      final end = Offset(
+        startX + (rng.nextDouble() - 0.5) * size.width * 0.4,
+        size.height * (0.5 + rng.nextDouble() * 0.5),
+      );
+      final path = _bolt(start, end, rng, 9, size.width * 0.12);
+      canvas.drawPath(path, glow);
+      canvas.drawPath(path, core);
+    }
+  }
+
+  /// Đường sét gãy khúc từ [a] đến [b], lệch ngẫu nhiên theo phương vuông góc.
+  Path _bolt(Offset a, Offset b, math.Random rng, int segments, double jitter) {
+    final path = Path()..moveTo(a.dx, a.dy);
+    final dir = b - a;
+    final len = dir.distance;
+    final perp = len == 0 ? Offset.zero : Offset(-dir.dy / len, dir.dx / len);
+    for (var i = 1; i < segments; i++) {
+      final f = i / segments;
+      final base = Offset.lerp(a, b, f)!;
+      final off = (rng.nextDouble() - 0.5) * jitter;
+      path.lineTo(base.dx + perp.dx * off, base.dy + perp.dy * off);
+    }
+    path.lineTo(b.dx, b.dy);
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(_FullScreenLightningPainter old) =>
+      old.progress != progress || old.seed != seed;
+}
+
+/// Thanh thông tin enemy: huy hiệu sọ + tên + cấp + thanh HP (và giáp nếu có).
+class _EnemyHeader extends StatelessWidget {
+  const _EnemyHeader({
+    required this.name,
+    required this.level,
+    required this.hp,
+    required this.maxHp,
+    required this.shield,
+  });
+
+  final String name;
+  final int level;
+  final int hp;
+  final int maxHp;
+  final int shield;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Dòng tên + cấp: nền sẫm, viền vàng đồng bộ với khung enemy.
+        Container(
+          padding: const EdgeInsets.fromLTRB(2, 1, 6, 1),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xF21E2B3D), Color(0xF2121B28)],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE3A93F), width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Huy hiệu sọ viền vàng.
+              Container(
+                width: 18,
+                height: 18,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF2A1830),
+                  border: Border.all(
+                    color: const Color(0xFFE3A93F),
+                    width: 1.2,
+                  ),
+                ),
+                child: const Text('☠️', style: TextStyle(fontSize: 9)),
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0x33FFFFFF),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  'Lv. $level',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Thanh HP đỏ nhô lên phía dưới name plate một chút (đè lên đỉnh khung).
+        Transform.translate(
+          offset: const Offset(0, -2),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              children: [
+                if (shield > 0) ...[
+                  _ShieldChip(shield: shield),
+                  const SizedBox(width: 4),
+                ],
+                Expanded(
+                  child: _HpBar(hp: hp, maxHp: maxHp),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Thanh máu enemy (đỏ) với số hp/maxHp ở giữa.
+class _HpBar extends StatelessWidget {
+  const _HpBar({required this.hp, required this.maxHp});
+  final int hp;
+  final int maxHp;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = maxHp == 0 ? 0.0 : (hp / maxHp).clamp(0.0, 1.0);
+    return Container(
+      height: 13,
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A1212),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0xFF2A0A0A), width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 2, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: AnimatedFractionallySizedBox(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOut,
+              alignment: Alignment.centerLeft,
+              widthFactor: ratio,
+              heightFactor: 1,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFFF6B5E), Color(0xFFE53935)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Text(
+              '$hp/$maxHp',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                height: 1.0,
+                fontWeight: FontWeight.w900,
+                shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Huy hiệu giáp enemy.
+class _ShieldChip extends StatelessWidget {
+  const _ShieldChip({required this.shield});
+  final int shield;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5B7FB0),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shield_rounded, color: Colors.white, size: 12),
+          const SizedBox(width: 2),
+          Text(
+            '$shield',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 6),
-          for (final (emoji, lv) in _pets) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF274B6D),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 26)),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Lv. $lv',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: _ProgressBar(progress: lv / 10, height: 5),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Số damage bay lên rồi mờ dần khi đánh trúng enemy.
+class _DamageFloat extends StatelessWidget {
+  const _DamageFloat({super.key, required this.damage});
+  final int damage;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      builder: (context, t, child) {
+        return Opacity(
+          opacity: (1 - t).clamp(0.0, 1.0),
+          child: Transform.translate(offset: Offset(0, -34 * t), child: child),
+        );
+      },
+      child: Text(
+        '-$damage',
+        style: const TextStyle(
+          color: Color(0xFFFFE36E),
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+          shadows: [
+            Shadow(color: Colors.black, blurRadius: 3, offset: Offset(0, 1)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Badge hiển thị chuỗi combo hiện tại.
+class _ComboBadge extends StatelessWidget {
+  const _ComboBadge({required this.combo});
+  final int combo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: _kGold,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white, width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1)),
+        ],
+      ),
+      child: Text(
+        'Combo x$combo',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }
@@ -1586,11 +2684,11 @@ class _StageNode extends StatelessWidget {
     // dùng bản "undone".
     final iconAsset = stage.kind == _StageKind.learn
         ? (isCompleted
-            ? 'assets/svgs/book_done.svg'
-            : 'assets/svgs/book_undone.svg')
+              ? 'assets/svgs/book_done.svg'
+              : 'assets/svgs/book_undone.svg')
         : (isCompleted
-            ? 'assets/svgs/practive_done.svg'
-            : 'assets/svgs/practive_undone.svg');
+              ? 'assets/svgs/practive_done.svg'
+              : 'assets/svgs/practive_undone.svg');
 
     final iconBox = Container(
       width: boxSize,
@@ -1604,11 +2702,7 @@ class _StageNode extends StatelessWidget {
           width: isCurrent ? 3 : 2,
         ),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: SvgPicture.asset(iconAsset),
@@ -1641,10 +2735,7 @@ class _StageNode extends StatelessWidget {
             ),
             Positioned(
               top: _centerY - boxSize / 2,
-              child: Opacity(
-                opacity: isUnlocked ? 1 : 0.55,
-                child: iconBox,
-              ),
+              child: Opacity(opacity: isUnlocked ? 1 : 0.55, child: iconBox),
             ),
             // Mũi nhọn dưới ô đang chơi
             if (isCurrent)
@@ -1674,28 +2765,28 @@ class _StageNode extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: const Icon(Icons.check,
-                      color: Colors.white, size: 15),
+                  child: const Icon(Icons.check, color: Colors.white, size: 15),
                 ),
               ),
             Positioned(
               top: _centerY + 40,
               child: Text(
                 stage.label,
-                style: TextStyle(
-                  color: _kInk,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.white70,
-                      blurRadius: 3,
-                      offset: Offset(0, 1),
+                style:
+                    TextStyle(
+                      color: _kInk,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.white70,
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ).copyWith(
+                      color: isUnlocked ? _kInk : _kInk.withValues(alpha: 0.5),
                     ),
-                  ],
-                ).copyWith(
-                  color: isUnlocked ? _kInk : _kInk.withValues(alpha: 0.5),
-                ),
               ),
             ),
           ],
@@ -1738,76 +2829,6 @@ class _SquareButton extends StatelessWidget {
   }
 }
 
-class _HintButton extends StatelessWidget {
-  const _HintButton({required this.count, required this.onTap});
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 68,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: _kCream,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _kBorder, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 5,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Column(
-              children: [
-                Text('💡', style: TextStyle(fontSize: 24)),
-                SizedBox(height: 2),
-                Text(
-                  'Gợi ý',
-                  style: TextStyle(
-                    color: _kInk,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: -7,
-            right: -7,
-            child: Container(
-              width: 23,
-              height: 23,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _kBlue,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Thẻ chữ cái / từ trong dạng sắp xếp. Khi [isSlot] là ô trống đích;
 /// khi [dimmed] là thẻ đã được đặt (mờ đi, không bấm được nữa).
 class _TokenTile extends StatelessWidget {
@@ -1840,8 +2861,7 @@ class _TokenTile extends StatelessWidget {
         child: Container(
           width: square ? 42 : null,
           height: 42,
-          padding:
-              square ? null : const EdgeInsets.symmetric(horizontal: 12),
+          padding: square ? null : const EdgeInsets.symmetric(horizontal: 12),
           // Chỉ căn giữa khi ô vuông cố định; nếu null + alignment thì
           // Container sẽ "nở" để chiếm hết width của Wrap → mất layout.
           alignment: square ? Alignment.center : null,
@@ -1893,8 +2913,11 @@ class _SwitchStageWarningDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: Color(0xFFE8A93B), size: 48),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFE8A93B),
+              size: 48,
+            ),
             const SizedBox(height: 8),
             const Text(
               'Chuyển chặng?',
