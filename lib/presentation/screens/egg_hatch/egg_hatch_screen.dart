@@ -130,6 +130,8 @@ class _EggHatchScreenState extends State<EggHatchScreen>
             ),
           ),
           _buildCenter(),
+          // Mây trang trí ở mép trên và dưới màn hình.
+          _buildClouds(),
           // Lớp ánh sáng lóa hết màn hình.
           IgnorePointer(
             child: AnimatedBuilder(
@@ -144,6 +146,81 @@ class _EggHatchScreenState extends State<EggHatchScreen>
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Mây trang trí (assets/images/homeScreen/clouds). Mây có đỉnh bồng bềnh và
+  /// đáy phẳng, nên dải trên được lật dọc để phần bồng bềnh hướng xuống. Nền
+  /// đặc cùng tông mây (#ECEEFB) lấp kín, mép tua mây che đường viền nền.
+  Widget _buildClouds() {
+    final size = MediaQuery.of(context).size;
+    final w = size.width;
+    final h = size.height;
+    const cloudColor = Color(0xFFECEEFB);
+
+    Widget cloud(String name, double width, {bool flip = false}) {
+      final img = Image.asset(
+        'assets/images/homeScreen/clouds/$name',
+        width: width,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      );
+      return flip ? Transform.scale(scaleY: -1, child: img) : img;
+    }
+
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Dải mây trên: nền đặc lấp kín mép trên + mây lật xuống ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: h * 0.12,
+            child: const ColoredBox(color: cloudColor),
+          ),
+          Positioned(
+            top: h * 0.02,
+            left: -w * 0.12,
+            child: cloud('clouds_1.png', w * 0.82, flip: true),
+          ),
+          Positioned(
+            top: h * 0.03,
+            right: -w * 0.14,
+            child: cloud('clouds_5.png', w * 0.85, flip: true),
+          ),
+          Positioned(
+            top: h * 0.05,
+            left: w * 0.26,
+            child: cloud('clouds_2.png', w * 0.5, flip: true),
+          ),
+
+          // ── Dải mây dưới (đã dịch lên): nền đặc ở đáy + mây hướng lên ──
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: h * 0.06,
+            child: const ColoredBox(color: cloudColor),
+          ),
+          Positioned(
+            bottom: h * 0.04,
+            left: -w * 0.12,
+            child: cloud('clouds_4.png', w * 0.64),
+          ),
+          Positioned(
+            bottom: h * 0.05,
+            right: -w * 0.12,
+            child: cloud('clouds_1.png', w * 0.62),
+          ),
+          Positioned(
+            bottom: h * 0.10,
+            left: w * 0.28,
+            child: cloud('clouds_2.png', w * 0.48),
           ),
         ],
       ),

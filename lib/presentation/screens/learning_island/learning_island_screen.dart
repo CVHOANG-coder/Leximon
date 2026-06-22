@@ -1,7 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
+
+import '../../../core/lottie/dotlottie_decoder.dart';
 
 enum CheckpointState { complete, current, uncheck }
 
@@ -241,10 +245,9 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
   AnimationController? _unlockCtrl;
   int? _unlockingIdx;
 
+  // Điều khiển hoạt ảnh lottie của checkpoint "current": đứng yên ở khung hình
+  // cuối khi vào màn (value = 1), chỉ chạy 0→1 khi mở khóa checkpoint mới.
   late final AnimationController _frameCtrl;
-  // Vào màn hình thì checkpoint current đứng yên ở frame cuối;
-  // animation chỉ chạy khi mở khóa checkpoint mới (_onCheckpointTap).
-  int _currentFrame = 4;
 
   @override
   void initState() {
@@ -252,12 +255,10 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
 
     _frameCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      // Tốc độ 0.5x: kéo dài thời lượng gấp đôi để lottie chạy chậm lại một nửa.
+      duration: const Duration(milliseconds: 2000),
+      value: 1.0,
     );
-    _frameCtrl.addListener(() {
-      final frame = (_frameCtrl.value * 5).floor().clamp(0, 4);
-      if (frame != _currentFrame) setState(() => _currentFrame = frame);
-    });
 
     // Start the map scrolled to the bottom so checkpoint 0 (the current one)
     // is visible; the user pulls up to reveal the locked checkpoints above.
@@ -305,8 +306,8 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
       setState(() {
         _checkpoints[tappedIdx].state = CheckpointState.current;
         _unlockingIdx = null;
-        _currentFrame = 0;
       });
+      // Chạy lottie checkpoint "current" từ đầu → dừng ở khung hình cuối.
       _frameCtrl.forward(from: 0);
     });
     setState(() {});
@@ -475,7 +476,7 @@ class _LearningIslandScreenState extends State<LearningIslandScreen>
                               onTap: () => _onCheckpointTap(i),
                               child: _CheckpointContent(
                                 model: _checkpoints[i],
-                                currentFrame: _currentFrame,
+                                currentCtrl: _frameCtrl,
                                 isUnlocking: _unlockingIdx == i,
                                 unlockCtrl: _unlockingIdx == i
                                     ? _unlockCtrl
@@ -647,28 +648,24 @@ class _RoadPainter extends CustomPainter {
 class _CheckpointContent extends StatelessWidget {
   const _CheckpointContent({
     required this.model,
-    required this.currentFrame,
+    required this.currentCtrl,
     required this.isUnlocking,
     required this.unlockCtrl,
   });
 
   static const double kSize = 56.0;
 
+  static const _completeSvg = 'assets/svgs/checkpoint_complete.svg';
+  static const _uncheckSvg = 'assets/svgs/checkpoint_uncheck.svg';
+  static const _currentLottie = 'assets/lotties/checkpoint.lottie';
+
   final CheckpointModel model;
-  final int currentFrame;
+
+  /// Controller hoạt ảnh lottie cho checkpoint "current" (idle = khung cuối,
+  /// chạy 0→1 khi vừa mở khóa).
+  final AnimationController currentCtrl;
   final bool isUnlocking;
   final AnimationController? unlockCtrl;
-
-  String get _asset {
-    return switch (model.state) {
-      CheckpointState.complete =>
-        'assets/images/checkpoint/checkpoint_complete.png',
-      CheckpointState.current =>
-        'assets/images/checkpoint/checkpointCurrent/checkpoint_current${currentFrame + 1}.png',
-      CheckpointState.uncheck =>
-        'assets/images/checkpoint/checkpoint_uncheck.png',
-    };
-  }
 
   /// Text color of the label, by state (matches the reference map).
   Color get _labelColor => switch (model.state) {
@@ -677,23 +674,26 @@ class _CheckpointContent extends StatelessWidget {
     CheckpointState.uncheck => const Color(0xFF20160B),
   };
 
-  Widget _baseImg() => Image.asset(
-    _asset,
+  /// Lottie checkpoint "current" với [ctrl] điều khiển tiến trình:
+  /// - [currentCtrl]: idle ở khung cuối (value 1), chạy 0→1 khi mở khóa.
+  /// - [kAlwaysDismissedAnimation]: đứng yên ở khung đầu (xem trước lúc nảy).
+  Widget _currentLottieWidget(Animation<double> ctrl) => Lottie.asset(
+    _currentLottie,
+    controller: ctrl,
     width: kSize,
+    height: kSize,
     fit: BoxFit.contain,
-    errorBuilder: (_, _, _) => Container(
-      width: kSize,
-      height: kSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: switch (model.state) {
-          CheckpointState.complete => const Color(0xFF3CB54A),
-          CheckpointState.current => const Color(0xFFF5A623),
-          CheckpointState.uncheck => Colors.white54,
-        },
-      ),
-    ),
+    decoder: dotLottieDecoder,
+    errorBuilder: (_, _, _) => SvgPicture.asset(_uncheckSvg, width: kSize),
   );
+
+  /// Ảnh tĩnh theo trạng thái: complete / uncheck dùng SVG, current dùng
+  /// lottie (đứng ở khung hình cuối khi không chạy hoạt ảnh).
+  Widget _baseImg() => switch (model.state) {
+    CheckpointState.complete => SvgPicture.asset(_completeSvg, width: kSize),
+    CheckpointState.uncheck => SvgPicture.asset(_uncheckSvg, width: kSize),
+    CheckpointState.current => _currentLottieWidget(currentCtrl),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -706,12 +706,8 @@ class _CheckpointContent extends StatelessWidget {
           scale: Curves.elasticOut.transform(unlockCtrl!.value),
           child: child,
         ),
-        child: Image.asset(
-          'assets/images/checkpoint/checkpointCurrent/checkpoint_current1.png',
-          width: kSize,
-          height: kSize,
-          errorBuilder: (_, _, _) => _baseImg(),
-        ),
+        // Xem trước khung đầu của lottie; sau khi nảy xong sẽ chạy tới khung cuối.
+        child: _currentLottieWidget(kAlwaysDismissedAnimation),
       );
     }
 
