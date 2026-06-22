@@ -102,6 +102,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
   /// creature_id → số sao, cho các thú người chơi đang sở hữu (đọc từ DB).
   Map<String, int> _ownedStars = const {};
 
+  /// creature_id → giai đoạn hiện tại ('baby' | 'teen' | 'adult') của thú
+  /// đang sở hữu, để thẻ hiển thị đúng ảnh theo stage.
+  Map<String, String> _ownedStages = const {};
+
   String _rarityTab = 'all';
   String? _islandFilter;
   _SortMode _sort = _SortMode.number;
@@ -128,6 +132,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
       _ownedStars = {
         for (final e in owned)
           if (e.hatched) e.creatureId: e.stars,
+      };
+      _ownedStages = {
+        for (final e in owned)
+          if (e.hatched) e.creatureId: e.stage,
       };
       _loading = false;
     });
@@ -464,6 +472,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           creature: creature,
           unlocked: owned,
           stars: _ownedStars[creature.id] ?? 0,
+          stage: _ownedStages[creature.id] ?? 'baby',
           onTap: () => _showDetail(creature),
         );
       },
@@ -478,6 +487,7 @@ class _CreatureCard extends StatelessWidget {
     required this.creature,
     required this.unlocked,
     required this.stars,
+    required this.stage,
     required this.onTap,
   });
 
@@ -486,6 +496,9 @@ class _CreatureCard extends StatelessWidget {
 
   /// Số sao thực tế của thú (từ DB); 0 nếu chưa sở hữu.
   final int stars;
+
+  /// Giai đoạn hiện tại của thú ('baby' | 'teen' | 'adult') để chọn ảnh.
+  final String stage;
   final VoidCallback onTap;
 
   @override
@@ -523,7 +536,7 @@ class _CreatureCard extends StatelessWidget {
               top: h * 0.16,
               bottom: h * 0.27,
               child: Image.asset(
-                CreatureRepository.imageAsset(creature.id),
+                CreatureRepository.imageAsset(creature.id, stage: stage),
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => Image.asset(
                   CreatureRepository.defaultImage,

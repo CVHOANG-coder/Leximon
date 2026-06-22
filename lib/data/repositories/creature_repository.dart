@@ -10,18 +10,32 @@ class CreatureRepository {
   static final CreatureRepository instance = CreatureRepository._();
 
   static const _asset = 'lib/data/sample/animals.json';
-  static const _imageDir = 'assets/images/learningIslandScreen/animals';
+
+  /// Thư mục chứa toàn bộ ảnh thú cưng, phân theo độ hiếm:
+  /// `assets/images/pets/<rarity>/<prefix>_<stage>.png`.
+  static const _imageDir = 'assets/images/pets';
+
+  /// Thư mục chứa ảnh "mảnh ghép" của thú cưng.
+  static const _puzzleDir = 'assets/images/pets/puzzles';
   static const _lottieDir = 'assets/lotties';
   static const defaultImage = 'assets/images/animal_default.png';
 
-  /// Sinh vật đã có bộ ảnh riêng: id → tiền tố tên file.
-  /// (Tên file trong assets không theo quy tắc thống nhất nên ánh xạ tay.)
-  static const _imagePrefix = {
-    'owlmon': 'owlmon',
+  /// Tiền tố tên file ảnh khác với id sinh vật (mặc định trùng id).
+  static const _prefixOverride = {
     'book_fox': 'bookfox',
-    'computurtle': 'computurtle',
     'number_bunny': 'NumberBunny',
   };
+
+  /// Sinh vật có ảnh "mảnh ghép" và hoạt ảnh dotLottie riêng.
+  static const _puzzleIds = {
+    'owlmon',
+    'book_fox',
+    'computurtle',
+    'number_bunny',
+  };
+
+  /// Tiền tố tên file ảnh của một sinh vật (mặc định là chính id).
+  static String _prefix(String id) => _prefixOverride[id] ?? id;
 
   /// Khóa stage trong JSON → hậu tố tên file ảnh.
   static const _stageSuffix = {
@@ -55,33 +69,32 @@ class CreatureRepository {
     return null;
   }
 
-  /// Sinh vật có bộ ảnh riêng hay chỉ dùng ảnh mặc định.
-  static bool hasOwnImage(String id) => _imagePrefix.containsKey(id);
+  /// Sinh vật có bộ ảnh riêng trong assets hay chỉ dùng ảnh mặc định.
+  /// Mọi sinh vật trong animals.json đều có ảnh trong `assets/images/pets`.
+  static bool hasOwnImage(String id) => instance.cachedById(id) != null;
 
   /// Đường dẫn ảnh cho một stage ('baby' | 'teen' | 'adult');
-  /// rơi về [defaultImage] khi sinh vật chưa có ảnh.
+  /// rơi về [defaultImage] khi chưa nạp được độ hiếm của sinh vật.
   static String imageAsset(String id, {String stage = 'baby'}) {
-    final prefix = _imagePrefix[id];
-    if (prefix == null) return defaultImage;
-    return '$_imageDir/${prefix}_${_stageSuffix[stage] ?? 'baby'}.png';
+    final rarity = instance.cachedById(id)?.rarity;
+    if (rarity == null) return defaultImage;
+    return '$_imageDir/$rarity/${_prefix(id)}_${_stageSuffix[stage] ?? 'baby'}.png';
   }
 
   /// Đường dẫn ảnh "mảnh ghép" của sinh vật (dùng ở màn nâng sao).
-  /// Trả về null nếu sinh vật chưa có bộ ảnh riêng.
+  /// Trả về null nếu sinh vật chưa có ảnh mảnh ghép riêng.
   static String? puzzleAsset(String id) {
-    final prefix = _imagePrefix[id];
-    if (prefix == null) return null;
-    return '$_imageDir/${prefix}_puzzle.png';
+    if (!_puzzleIds.contains(id)) return null;
+    return '$_puzzleDir/${_prefix(id)}_puzzle.png';
   }
 
   /// Đường dẫn hoạt ảnh dotLottie ứng viên cho một stage (cùng quy ước tên
-  /// với [imageAsset]). Trả về null nếu sinh vật chưa có bộ ảnh riêng.
+  /// với [imageAsset]). Trả về null nếu sinh vật chưa có hoạt ảnh riêng.
   ///
   /// File có thể chưa tồn tại — bên gọi nên dùng `errorBuilder` của Lottie
   /// để rơi về ảnh tĩnh khi không nạp được.
   static String? lottieAsset(String id, {String stage = 'baby'}) {
-    final prefix = _imagePrefix[id];
-    if (prefix == null) return null;
-    return '$_lottieDir/${prefix}_${_stageSuffix[stage] ?? 'baby'}.lottie';
+    if (!_puzzleIds.contains(id)) return null;
+    return '$_lottieDir/pet/${_prefix(id)}_${_stageSuffix[stage] ?? 'baby'}.json';
   }
 }

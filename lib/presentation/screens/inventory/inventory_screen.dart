@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/repositories/creature_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
 import '../../../data/repositories/progress_repository.dart';
+import '../egg_hatch/egg_hatch_screen.dart';
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const _kInk = Color(0xFF1E3A5F);
@@ -15,11 +16,14 @@ const _kMuted = Color(0xFF8A8174);
 enum _Tab { all, items, pieces }
 
 class _InvItem {
-  const _InvItem(this.name, this.desc, this.count, this.asset);
+  const _InvItem(this.name, this.desc, this.count, this.asset, {this.eggType});
   final String name;
   final String desc;
   final int count;
   final String asset;
+
+  /// 'common' | 'rare' nếu vật phẩm là trứng (bấm để mở), null nếu không.
+  final String? eggType;
 }
 
 class _PieceItem {
@@ -89,9 +93,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
       _InvItem('Đá tiến hóa', 'Dùng để tiến hóa thú\nlên cấp cao hơn.',
           profile.evolutionStone, 'assets/images/stone_upgrade.png'),
       _InvItem('Trứng thường', 'Dùng để ấp thú\nngẫu nhiên.',
-          profile.commonEgg, 'assets/images/eggs/common_egg.png'),
+          profile.commonEgg, 'assets/images/eggs/common_egg.png',
+          eggType: 'common'),
       _InvItem('Trứng hiếm', 'Có cơ hội nở ra\nthú quý hiếm hơn.',
-          profile.rareEgg, 'assets/images/eggs/rare_egg.png'),
+          profile.rareEgg, 'assets/images/eggs/rare_egg.png', eggType: 'rare'),
     ];
 
     final pieces = <_PieceItem>[
@@ -114,18 +119,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
   }
 
-  static const _puzzlePrefix = {
-    'owlmon': 'owlmon',
-    'book_fox': 'bookfox',
-    'computurtle': 'computurtle',
-    'number_bunny': 'NumberBunny',
-  };
-
-  static String _puzzleAsset(String creatureId) {
-    final prefix = _puzzlePrefix[creatureId];
-    if (prefix == null) return CreatureRepository.defaultImage;
-    return 'assets/images/learningIslandScreen/animals/${prefix}_puzzle.png';
+  /// Mở màn ấp trứng; nếu ấp thành công thì tải lại kho để cập nhật số trứng.
+  Future<void> _openEgg(String eggType) async {
+    final hatched = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => EggHatchScreen(eggType: eggType),
+      ),
+    );
+    if (hatched == true && mounted) _load();
   }
+
+  static String _puzzleAsset(String creatureId) =>
+      CreatureRepository.puzzleAsset(creatureId) ??
+      CreatureRepository.defaultImage;
 
   int get _itemSlots => _items.where((i) => i.count > 0).length;
   int get _pieceTotal => _pieces.fold<int>(0, (s, p) => s + p.owned);
@@ -360,7 +367,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
         crossAxisSpacing: 12,
         childAspectRatio: 0.82,
       ),
-      itemBuilder: (_, i) => _ItemCard(item: visible[i]),
+      itemBuilder: (_, i) => _ItemCard(
+        item: visible[i],
+        onTap: visible[i].eggType != null
+            ? () => _openEgg(visible[i].eggType!)
+            : null,
+      ),
     );
   }
 
@@ -550,53 +562,59 @@ class _CounterCell extends StatelessWidget {
 }
 
 class _ItemCard extends StatelessWidget {
-  const _ItemCard({required this.item});
+  const _ItemCard({required this.item, this.onTap});
   final _InvItem item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-      decoration: BoxDecoration(
-        color: _kCream,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kCreamBorder, width: 2),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: _CountBadge(count: item.count),
-          ),
-          const SizedBox(height: 2),
-          Expanded(
-            child: Image.asset(item.asset, fit: BoxFit.contain),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            item.name,
-            style: const TextStyle(
-              color: _kInk,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+        decoration: BoxDecoration(
+          color: _kCream,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _kCreamBorder, width: 2),
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: _CountBadge(count: item.count),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            item.desc,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            style: const TextStyle(
-              color: _kMuted,
-              fontSize: 11.5,
-              height: 1.25,
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 2),
+            Expanded(
+              child: Image.asset(item.asset, fit: BoxFit.contain),
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              item.name,
+              style: const TextStyle(
+                color: _kInk,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              onTap != null ? 'Chạm để mở' : item.desc,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: TextStyle(
+                color: onTap != null ? _kBlue : _kMuted,
+                fontSize: 11.5,
+                height: 1.25,
+                fontWeight: onTap != null ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

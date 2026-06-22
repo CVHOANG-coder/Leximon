@@ -1,10 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import 'package:lottie/lottie.dart';
 
-import '../../../core/lottie/dotlottie_decoder.dart';
 import '../../../data/models/creature.dart';
 import '../../../data/repositories/creature_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
@@ -156,13 +156,13 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                         child: Column(
                           children: [
                             _buildHero(),
-                            const SizedBox(height: 12),
-                            _buildStatsPanel(),
-                            const SizedBox(height: 12),
+                            // const SizedBox(height: 12),
+                            // _buildStatsPanel(),
+                            const SizedBox(height: 8),
                             _buildStarPanel(),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildEvolutionPanel(),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             _buildSkillPanel(),
                           ],
                         ),
@@ -235,7 +235,8 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
     return Lottie.asset(
       lottiePath,
       fit: BoxFit.cover,
-      decoder: dotLottieDecoder,
+      // File lottie của thú là JSON thuần (assets/lotties/pet) nên dùng decoder
+      // mặc định, không phải dotLottie.
       // Không có file lottie cho giai đoạn này → rơi về cảnh nền + ảnh tĩnh.
       errorBuilder: (_, _, _) => scene,
     );
@@ -396,110 +397,110 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
 
-  Widget _buildStatsPanel() {
-    final s = _stats!;
-    return _Panel(
-      child: Row(
-        children: [
-          // Đảo của thú.
-          Column(
-            children: [
-              const Text(
-                'Đảo',
-                style: TextStyle(
-                  color: _kInk,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Image.asset(
-                'assets/images/pet_detail_screen/icon_island.png',
-                width: 40,
-                height: 40,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) =>
-                    const Text('🏝️', style: TextStyle(fontSize: 30)),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _kBlue,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  _islandShortVi[_creature!.island] ?? _creature!.island,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _stat('⚔️', 'Sức mạnh', s.power, s.powerGain),
-                _stat('❤️', 'HP', s.hp, s.hpGain),
-                _stat('🛡️', 'Phòng thủ', s.defense, s.defenseGain),
-                _stat('🪽', 'Tốc độ', s.speed, s.speedGain),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => _comingSoon('Chi tiết chỉ số'),
-            child: Icon(
-              Icons.info_outline_rounded,
-              color: _kInk.withValues(alpha: 0.6),
-              size: 22,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildStatsPanel() {
+  //   final s = _stats!;
+  //   return _Panel(
+  //     child: Row(
+  //       children: [
+  //         // Đảo của thú.
+  //         Column(
+  //           children: [
+  //             const Text(
+  //               'Đảo',
+  //               style: TextStyle(
+  //                 color: _kInk,
+  //                 fontSize: 12,
+  //                 fontWeight: FontWeight.w800,
+  //               ),
+  //             ),
+  //             const SizedBox(height: 6),
+  //             Image.asset(
+  //               'assets/images/pet_detail_screen/icon_island.png',
+  //               width: 40,
+  //               height: 40,
+  //               fit: BoxFit.contain,
+  //               errorBuilder: (_, _, _) =>
+  //                   const Text('🏝️', style: TextStyle(fontSize: 30)),
+  //             ),
+  //             const SizedBox(height: 6),
+  //             Container(
+  //               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  //               decoration: BoxDecoration(
+  //                 color: _kBlue,
+  //                 borderRadius: BorderRadius.circular(10),
+  //               ),
+  //               child: Text(
+  //                 _islandShortVi[_creature!.island] ?? _creature!.island,
+  //                 style: const TextStyle(
+  //                   color: Colors.white,
+  //                   fontSize: 11,
+  //                   fontWeight: FontWeight.w800,
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(width: 6),
+  //         Expanded(
+  //           child: Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //             children: [
+  //               _stat('⚔️', 'Sức mạnh', s.power, s.powerGain),
+  //               _stat('❤️', 'HP', s.hp, s.hpGain),
+  //               _stat('🛡️', 'Phòng thủ', s.defense, s.defenseGain),
+  //               _stat('🪽', 'Tốc độ', s.speed, s.speedGain),
+  //             ],
+  //           ),
+  //         ),
+  //         GestureDetector(
+  //           onTap: () => _comingSoon('Chi tiết chỉ số'),
+  //           child: Icon(
+  //             Icons.info_outline_rounded,
+  //             color: _kInk.withValues(alpha: 0.6),
+  //             size: 22,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _stat(String emoji, String label, int value, int gain) {
-    String fmt(int v) =>
-        v >= 1000 ? (v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 3) : '$v';
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: _kInk,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(height: 2),
-        Text(
-          fmt(value),
-          style: const TextStyle(
-            color: _kInk,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        Text(
-          '+$gain',
-          style: const TextStyle(
-            color: _kGreen,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _stat(String emoji, String label, int value, int gain) {
+  //   String fmt(int v) =>
+  //       v >= 1000 ? (v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 3) : '$v';
+  //   return Column(
+  //     mainAxisSize: MainAxisSize.min,
+  //     children: [
+  //       Text(
+  //         label,
+  //         style: const TextStyle(
+  //           color: _kInk,
+  //           fontSize: 11,
+  //           fontWeight: FontWeight.w800,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 2),
+  //       Text(emoji, style: const TextStyle(fontSize: 20)),
+  //       const SizedBox(height: 2),
+  //       Text(
+  //         fmt(value),
+  //         style: const TextStyle(
+  //           color: _kInk,
+  //           fontSize: 14,
+  //           fontWeight: FontWeight.w900,
+  //         ),
+  //       ),
+  //       Text(
+  //         '+$gain',
+  //         style: const TextStyle(
+  //           color: _kGreen,
+  //           fontSize: 11,
+  //           fontWeight: FontWeight.w800,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   // ── Nâng cấp sao ────────────────────────────────────────────────────────
 
@@ -542,8 +543,8 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                     if (puzzle != null)
                       Image.asset(
                         puzzle,
-                        width: 32,
-                        height: 32,
+                        width: 40,
+                        height: 40,
                         fit: BoxFit.contain,
                         errorBuilder: (_, _, _) =>
                             const Text('🧩', style: TextStyle(fontSize: 22)),
@@ -633,7 +634,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
     final canEvolve = s.stones >= s.stonesMax;
     // Padding trên chừa chỗ cho tag nhô lên, tránh đè vào panel phía trên.
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 0),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -642,35 +643,44 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Chừa chỗ cho tag "TIẾN HÓA" đính ở góc trên-trái.
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < _stageOrder.length; i++) ...[
-                      Expanded(
-                        child: _EvolutionStage(
-                          label: _stageOrder[i].$2,
-                          asset: CreatureRepository.imageAsset(
-                            c.id,
-                            stage: _stageOrder[i].$1,
+                const SizedBox(height: 24),
+                Builder(
+                  builder: (context) {
+                    final currentIndex = _stageOrder.indexWhere(
+                      (e) => e.$1 == _stage,
+                    );
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < _stageOrder.length; i++) ...[
+                          Expanded(
+                            child: _EvolutionStage(
+                              label: _stageOrder[i].$2,
+                              asset: CreatureRepository.imageAsset(
+                                c.id,
+                                stage: _stageOrder[i].$1,
+                              ),
+                              highlight: _stageOrder[i].$1 == _stage,
+                              // Mờ các giai đoạn nằm sau giai đoạn hiện tại.
+                              locked: currentIndex >= 0 && i > currentIndex,
+                            ),
                           ),
-                          highlight: _stageOrder[i].$1 == _stage,
-                        ),
-                      ),
-                      if (i < _stageOrder.length - 1)
-                        // Đẩy xuống bằng phần chừa cho nhãn → mũi tên canh giữa card.
-                        const Padding(
-                          padding: EdgeInsets.only(
-                            top: _EvolutionStage.labelGap,
-                          ),
-                          child: Icon(
-                            Icons.double_arrow_rounded,
-                            color: _kGold,
-                            size: 26,
-                          ),
-                        ),
-                    ],
-                  ],
+                          if (i < _stageOrder.length - 1)
+                            // Bù phần nhãn nằm dưới → mũi tên canh giữa tâm thẻ.
+                            const Padding(
+                              padding: EdgeInsets.only(
+                                bottom: _EvolutionStage.labelArea,
+                              ),
+                              child: Icon(
+                                Icons.double_arrow_rounded,
+                                color: _kGold,
+                                size: 26,
+                              ),
+                            ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -754,7 +764,14 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
     return _Panel(
       child: Row(
         children: [
-          const Text('📖', style: TextStyle(fontSize: 34)),
+          Image.asset(
+            'assets/images/pet_detail_screen/skill_book.png',
+            width: 48,
+            height: 48,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) =>
+                const Text('📖', style: TextStyle(fontSize: 34)),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -780,25 +797,25 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              _CircleButton(
-                color: _kBlue,
-                icon: Icons.play_arrow_rounded,
-                onTap: () => _comingSoon('Xem thử kỹ năng'),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Xem thử',
-                style: TextStyle(
-                  color: _kInk,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+          // const SizedBox(width: 8),
+          // Column(
+          //   children: [
+          //     _CircleButton(
+          //       color: _kBlue,
+          //       icon: Icons.play_arrow_rounded,
+          //       onTap: () => _comingSoon('Xem thử kỹ năng'),
+          //     ),
+          //     const SizedBox(height: 2),
+          //     const Text(
+          //       'Xem thử',
+          //       style: TextStyle(
+          //         color: _kInk,
+          //         fontSize: 10,
+          //         fontWeight: FontWeight.w700,
+          //       ),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -1281,6 +1298,7 @@ class _EvolutionStage extends StatelessWidget {
     required this.label,
     required this.asset,
     this.highlight = false,
+    this.locked = false,
   });
   final String label;
   final String asset;
@@ -1288,48 +1306,62 @@ class _EvolutionStage extends StatelessWidget {
   /// Giai đoạn hiện tại của thú → tô viền vàng nổi bật.
   final bool highlight;
 
-  /// Khoảng card chừa phía trên để nhãn giai đoạn giao với viền trên của card
-  /// (nhãn canh giữa đường viền này). Dùng chung để canh mũi tên đúng tâm card.
-  static const double labelGap = 11;
+  /// Giai đoạn nằm sau giai đoạn hiện tại → làm mờ + xám ảnh thú.
+  final bool locked;
+
+  /// Khoảng cách nhỏ giữa thẻ và nhãn giai đoạn đặt bên dưới.
+  static const double labelGap = 6;
+
+  /// Phần chiều cao chiếm bởi khoảng cách + nhãn bên dưới thẻ. Dùng để canh
+  /// mũi tên giữa nằm đúng tâm thẻ (bù lại phần nhãn nằm dưới).
+  static const double labelArea = 22;
+
+  /// Khi [locked]: làm mờ nhòe (blur) ảnh thú để không nhìn rõ giai đoạn
+  /// chưa mở khóa.
+  Widget _maybeDim(Widget child) {
+    if (!locked) return child;
+    return ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      child: child,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: labelGap),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(7, 12, 7, 7),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFFBEC), Color(0xFFF1E1B9)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: highlight ? _kGold : _kBorder,
-                width: highlight ? 3 : 2,
-              ),
-              boxShadow: [
-                if (highlight)
-                  BoxShadow(
-                    color: _kGold.withValues(alpha: 0.55),
-                    blurRadius: 8,
-                    spreadRadius: 0.5,
-                  ),
-                const BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 3,
-                  offset: Offset(0, 2),
-                ),
-              ],
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFFFBEC), Color(0xFFF1E1B9)],
             ),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Image.asset(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: highlight ? _kGold : _kBorder,
+              width: highlight ? 3 : 2,
+            ),
+            boxShadow: [
+              if (highlight)
+                BoxShadow(
+                  color: _kGold.withValues(alpha: 0.55),
+                  blurRadius: 8,
+                  spreadRadius: 0.5,
+                ),
+              const BoxShadow(
+                color: Colors.black26,
+                blurRadius: 3,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: _maybeDim(
+              Image.asset(
                 asset,
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => Image.asset(
@@ -1340,21 +1372,19 @@ class _EvolutionStage extends StatelessWidget {
             ),
           ),
         ),
-        // Nhãn giai đoạn nằm giao với viền trên của card (tâm chữ ~ viền).
-        Positioned(
-          top: 0,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: const TextStyle(
-              color: _kInk,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w900,
-              shadows: [
-                Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
-                Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
-              ],
-            ),
+        // Nhãn giai đoạn đặt bên dưới thẻ, cách thẻ 1 khoảng nhỏ.
+        const SizedBox(height: labelGap),
+        Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(
+            color: _kInk,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w900,
+            shadows: [
+              Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
+              Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
+            ],
           ),
         ),
       ],
@@ -1400,19 +1430,26 @@ class _TitleBanner extends StatelessWidget {
                   size: 28,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFFFCE9CA),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 3,
-                        offset: Offset(0, 1),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: Color(0xFFFCE9CA),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],

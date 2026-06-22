@@ -119,9 +119,10 @@ class AppDatabase {
 
     await _createInventoryTables(db);
     await _createTeamTable(db);
-    await _seedStarterCreatures(db);
+    // Người chơi mới bắt đầu KHÔNG có thú nào — chỉ được tặng trứng.
 
-    // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin.
+    // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin; tặng 1 trứng hiếm + 2 trứng thường
+    // khi mới cài app.
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.insert('user_profile', {
       'id': 1,
@@ -129,6 +130,8 @@ class AppDatabase {
       'xp': 0,
       'total_xp': 0,
       'coins': 0,
+      'common_egg': 2,
+      'rare_egg': 1,
       'created_at': now,
       'updated_at': now,
     });

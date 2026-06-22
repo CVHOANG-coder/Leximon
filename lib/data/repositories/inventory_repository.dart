@@ -4,6 +4,18 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/app_database.dart';
 
+/// Kết quả ấp trứng.
+enum HatchOutcome {
+  /// Ấp ra thú mới chưa từng sở hữu.
+  newPet,
+
+  /// Trùng thú đã có → đổi thành mảnh ghép.
+  duplicateShards,
+
+  /// Không còn trứng để ấp.
+  noEgg,
+}
+
 /// Bản ghi inventory của một creature.
 class CreatureInventoryEntry {
   const CreatureInventoryEntry({
@@ -214,10 +226,15 @@ class InventoryRepository {
   // ── Tiêu / nâng cấp ───────────────────────────────────────────────────────
 
   /// Ấp một trứng (dùng [eggType] = 'common' | 'rare') ra [creatureId].
-  /// Trả về false nếu không còn trứng.
-  Future<bool> hatchEgg({
+  ///
+  /// - Nếu chưa sở hữu thú: ấp ra thú mới → [HatchOutcome.newPet].
+  /// - Nếu đã sở hữu: đổi thành [duplicateShards] mảnh ghép của thú đó
+  ///   → [HatchOutcome.duplicateShards].
+  /// - Hết trứng: [HatchOutcome.noEgg].
+  Future<HatchOutcome> hatchEgg({
     required String eggType,
     required String creatureId,
+    int duplicateShards = 10,
   }) async {
     final db = await _db;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -229,7 +246,26 @@ class InventoryRepository {
         'WHERE id = 1 AND $column > 0',
         [now],
       );
-      if (spent == 0) return false;
+      if (spent == 0) return HatchOutcome.noEgg;
+
+      final rows = await txn.query(
+        'creature_inventory',
+        columns: ['hatched'],
+        where: 'creature_id = ?',
+        whereArgs: [creatureId],
+      );
+      final alreadyOwned = rows.isNotEmpty && (rows.first['hatched'] as int) != 0;
+
+      if (alreadyOwned) {
+        // Trùng thú → cộng mảnh ghép thay vì ấp lại.
+        await txn.rawUpdate(
+          'UPDATE creature_inventory '
+          'SET shards = shards + ?, updated_at = ? WHERE creature_id = ?',
+          [duplicateShards, now, creatureId],
+        );
+        return HatchOutcome.duplicateShards;
+      }
+
       await txn.rawInsert(
         'INSERT INTO creature_inventory '
         '(creature_id, shards, hatched, stars, stage, obtained_at, updated_at) '
@@ -240,7 +276,7 @@ class InventoryRepository {
         'updated_at = excluded.updated_at',
         [creatureId, 'baby', now, now],
       );
-      return true;
+      return HatchOutcome.newPet;
     });
   }
 

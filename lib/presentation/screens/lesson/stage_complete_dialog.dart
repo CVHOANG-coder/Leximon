@@ -56,20 +56,11 @@ class _StageCompleteDialogState extends State<StageCompleteDialog> {
     Navigator.of(context).pop(false);
   }
 
-  // creature_id → tiền tố file ảnh puzzle (ánh xạ tay, khớp với
-  // [InventoryScreen] và assets/images/learningIslandScreen/animals/).
-  static const _puzzlePrefix = {
-    'owlmon': 'owlmon',
-    'book_fox': 'bookfox',
-    'computurtle': 'computurtle',
-    'number_bunny': 'NumberBunny',
-  };
-
-  static String _puzzleAsset(String creatureId) {
-    final prefix = _puzzlePrefix[creatureId];
-    if (prefix == null) return CreatureRepository.defaultImage;
-    return 'assets/images/learningIslandScreen/animals/${prefix}_puzzle.png';
-  }
+  // Ảnh mảnh ghép lấy tập trung từ CreatureRepository
+  // (assets/images/pets/puzzles/).
+  static String _puzzleAsset(String creatureId) =>
+      CreatureRepository.puzzleAsset(creatureId) ??
+      CreatureRepository.defaultImage;
 
   List<_RewardTile> get _tiles {
     final r = widget.reward;

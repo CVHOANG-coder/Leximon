@@ -7,11 +7,14 @@ import 'package:lottie/lottie.dart';
 import '../../../core/tts/tts_service.dart';
 import '../../../data/models/battle_config.dart';
 import '../../../data/models/context_sentence.dart';
+import '../../../data/models/creature.dart';
 import '../../../data/models/enemy.dart';
 import '../../../data/models/vocab_topic.dart';
 import '../../../data/models/vocab_word.dart';
+import '../../../data/repositories/creature_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
 import '../../../data/repositories/progress_repository.dart';
+import '../../../data/repositories/team_repository.dart';
 import '../../../data/repositories/vocabulary_repository.dart';
 import '../../../data/services/reward_service.dart';
 import 'stage_complete_dialog.dart';
@@ -165,6 +168,17 @@ class _LessonScreenState extends State<LessonScreen> {
   /// Câu ngữ cảnh của chủ đề, nhóm theo từ đáp án (chữ thường).
   Map<String, List<ContextSentence>> _sentences = const {};
 
+  /// Đội hình thú ra trận của người chơi (đọc từ SQLite). Rỗng nếu chưa chọn.
+  List<_TeamPet> _team = const [];
+
+  /// Neo popup đội hình vào nút "Đội hình" (hiển thị như tooltip đính nút).
+  final LayerLink _teamLink = LayerLink();
+  OverlayEntry? _teamOverlay;
+
+  /// Hiện/ẩn thanh các chặng ở dưới đáy màn. Mặc định ẩn cho rộng màn chơi;
+  /// bật bằng nút "Hiện chặng".
+  bool _showStageTrack = false;
+
   // ── Trạng thái battle (xem enemy_battle_mechanism.md) ──────────────────────
   BattleConfig _battle = BattleConfig.fallback;
 
@@ -204,11 +218,37 @@ class _LessonScreenState extends State<LessonScreen> {
     // Khởi tạo TTS sớm (lần đầu sẽ tải model nền) để nút loa sẵn sàng.
     TtsService.instance.init();
     _load();
+    _loadTeam();
+  }
+
+  /// Nạp đội hình thú đã lưu (creature_id + giai đoạn + sao) để hiển thị ảnh
+  /// thú thật bên đấu trường. Lỗi hoặc chưa có đội hình → giữ danh sách rỗng.
+  Future<void> _loadTeam() async {
+    try {
+      final creatures = await CreatureRepository.instance.loadCreatures();
+      final entries = await InventoryRepository.instance.getAllCreatures();
+      final teamIds = await TeamRepository.instance.getTeam();
+      if (!mounted) return;
+      final byId = {for (final c in creatures) c.id: c};
+      final invById = {for (final e in entries) e.creatureId: e};
+      final team = <_TeamPet>[];
+      for (final id in teamIds) {
+        final c = byId[id];
+        final inv = invById[id];
+        if (c == null || inv == null || !inv.hatched) continue;
+        team.add(_TeamPet(creature: c, stage: inv.stage, stars: inv.stars));
+      }
+      setState(() => _team = team);
+    } catch (_) {
+      // Bỏ qua: đấu trường vẫn chạy bình thường khi không nạp được đội hình.
+    }
   }
 
   @override
   void dispose() {
     TtsService.instance.stop();
+    _teamOverlay?.remove();
+    _teamOverlay = null;
     _stageScroll.dispose();
     super.dispose();
   }
@@ -888,7 +928,22 @@ class _LessonScreenState extends State<LessonScreen> {
                       children: [
                         _buildHeader(),
                         Expanded(child: _buildPlayArea()),
-                        _buildStageTrack(),
+                        // Ẩn/hiện thanh chặng với hiệu ứng trượt-mờ + co giãn.
+                        ClipRect(
+                          child: AnimatedSize(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeInOut,
+                            alignment: Alignment.topCenter,
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeInOut,
+                              opacity: _showStageTrack ? 1 : 0,
+                              child: _showStageTrack
+                                  ? _buildStageTrack()
+                                  : const SizedBox(width: double.infinity),
+                            ),
+                          ),
+                        ),
                         _buildTopicProgress(),
                       ],
                     ),
@@ -1022,7 +1077,11 @@ class _LessonScreenState extends State<LessonScreen> {
             width: frame,
             height: frame,
             child: _EnemyFrame(
-              child: _EnemyVisual(hitTick: _hitTick, attackTick: _attackTick),
+              child: _EnemyVisual(
+                assetKey: _enemy?.assetKey ?? '',
+                hitTick: _hitTick,
+                attackTick: _attackTick,
+              ),
             ),
           ),
           // Hiệu ứng tấn công (chớp / nổ / tia điện) phủ trên khung enemy.
@@ -1060,16 +1119,32 @@ class _LessonScreenState extends State<LessonScreen> {
               top: 210 - frame + 64,
               child: _ComboBadge(combo: _combo),
             ),
-          // Cụm đội hình: nút paw "Đội hình" + bảng pet.
+          // Nút "Đội hình": ấn để bật/tắt popup chi tiết đội hình (tooltip
+          // đính ngay dưới nút). Không hiển thị bảng pet thường trực.
           Positioned(
             left: 8,
             top: 10,
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DoiHinhButton(onTap: _showTeamFormation),
-                const SizedBox(width: 6),
-                const _TeamPanel(),
+                CompositedTransformTarget(
+                  link: _teamLink,
+                  child: _ArenaButton(
+                    icon: Icons.pets_rounded,
+                    label: 'Đội hình',
+                    onTap: _toggleTeamPopup,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Ẩn/hiện thanh các chặng ở đáy màn.
+                _ArenaButton(
+                  icon: _showStageTrack
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  label: _showStageTrack ? 'Ẩn chặng' : 'Hiện chặng',
+                  onTap: () =>
+                      setState(() => _showStageTrack = !_showStageTrack),
+                ),
               ],
             ),
           ),
@@ -1078,65 +1153,44 @@ class _LessonScreenState extends State<LessonScreen> {
     );
   }
 
-  /// Popup đội hình (tạm thời) — hệ thống pet sẽ nối sau.
-  void _showTeamFormation() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: _kCream,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Đội hình',
-                style: TextStyle(
-                  color: _kInk,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Chọn và nâng cấp linh thú cho trận đánh.\nTính năng sẽ sớm được cập nhật!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _kInk,
-                  fontSize: 14,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (final (emoji, lv) in _TeamPanel.pets)
-                    Column(
-                      children: [
-                        Text(emoji, style: const TextStyle(fontSize: 40)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Lv. $lv',
-                          style: const TextStyle(
-                            color: _kInk,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ],
+  /// Bật/tắt popup chi tiết đội hình — hiển thị như tooltip đính ngay dưới nút
+  /// "Đội hình" (dùng Overlay + LayerLink). Ấn ra ngoài hoặc ấn lại nút để đóng.
+  void _toggleTeamPopup() {
+    if (_teamOverlay != null) {
+      _removeTeamPopup();
+      return;
+    }
+    final overlay = Overlay.of(context);
+    _teamOverlay = OverlayEntry(
+      builder: (_) => Stack(
+        children: [
+          // Lớp chắn trong suốt phủ kín màn: chạm bất kỳ đâu (kể cả vào nút)
+          // để đóng popup. Dùng opaque để không lọt xuống nút bên dưới (tránh
+          // vừa đóng vừa mở lại).
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _removeTeamPopup,
+            ),
           ),
-        ),
+          // Popup đính bên phải nút (mũi nhọn chỉ sang trái vào nút).
+          CompositedTransformFollower(
+            link: _teamLink,
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.centerRight,
+            followerAnchor: Alignment.centerLeft,
+            offset: const Offset(6, 0),
+            child: _TeamTooltip(pets: _team),
+          ),
+        ],
       ),
     );
+    overlay.insert(_teamOverlay!);
+  }
+
+  void _removeTeamPopup() {
+    _teamOverlay?.remove();
+    _teamOverlay = null;
   }
 
   Widget _buildQuestionCard() {
@@ -1674,8 +1728,16 @@ class _LessonScreenState extends State<LessonScreen> {
 // ─── Battle: enemy + đội hình (hệ thống pet sẽ nối sau) ───────────────────────
 
 /// Nút mở popup đội hình — dấu chân thú + nhãn "Đội hình" (kiểu nút gỗ).
-class _DoiHinhButton extends StatelessWidget {
-  const _DoiHinhButton({required this.onTap});
+/// Nút vuông gọn ở góc đấu trường (icon + nhãn) — dùng cho "Đội hình" và
+/// nút ẩn/hiện thanh chặng.
+class _ArenaButton extends StatelessWidget {
+  const _ArenaButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -1697,15 +1759,15 @@ class _DoiHinhButton extends StatelessWidget {
             ),
           ],
         ),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.pets_rounded, color: Color(0xFF8A5A2B), size: 26),
-            SizedBox(height: 2),
+            Icon(icon, color: const Color(0xFF8A5A2B), size: 26),
+            const SizedBox(height: 2),
             Text(
-              'Đội hình',
+              label,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: _kInk,
                 fontSize: 9,
                 fontWeight: FontWeight.w900,
@@ -1718,82 +1780,193 @@ class _DoiHinhButton extends StatelessWidget {
   }
 }
 
-/// Bảng pet trong đội hình (trang trí — hệ thống pet sẽ nối sau).
-class _TeamPanel extends StatelessWidget {
-  const _TeamPanel();
+/// Một thú trong đội hình ra trận (gói dữ liệu để hiển thị ảnh thật).
+class _TeamPet {
+  const _TeamPet({
+    required this.creature,
+    required this.stage,
+    required this.stars,
+  });
 
-  static const pets = [('🐱', 6), ('🐤', 5), ('🌱', 4)];
+  final Creature creature;
+
+  /// Giai đoạn tiến hóa ('baby' | 'teen' | 'adult') → chọn đúng ảnh.
+  final String stage;
+
+  /// Số sao tiến hóa (0–5).
+  final int stars;
+}
+
+/// Popup chi tiết đội hình, hiển thị như tooltip đính ngay dưới nút "Đội hình":
+/// một mũi nhọn chỉ lên nút + thẻ kem liệt kê ảnh thú thật trong đội hình.
+class _TeamTooltip extends StatelessWidget {
+  const _TeamTooltip({required this.pets});
+
+  final List<_TeamPet> pets;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 60,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 5),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFBEE3F5), Color(0xFF8FC7E8)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF6FA8CC), width: 2),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
-        ],
-      ),
-      child: Column(
+    return Material(
+      type: MaterialType.transparency,
+      child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          for (final (emoji, lv) in pets) ...[
-            _TeamPetTile(emoji: emoji, level: lv),
-            if (lv != pets.last.$2) const SizedBox(height: 5),
-          ],
+          // Mũi nhọn chỉ sang trái vào nút.
+          const CustomPaint(
+            size: Size(9, 18),
+            painter: _TooltipArrowPainter(),
+          ),
+          Container(
+            constraints: const BoxConstraints(maxWidth: 200),
+            padding: const EdgeInsets.fromLTRB(10, 10, 12, 12),
+            decoration: BoxDecoration(
+              color: _kCream,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _kBorder, width: 2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black38,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: pets.isEmpty ? _buildEmpty() : _buildPets(),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildEmpty() {
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.pets_rounded, color: _kBorder, size: 22),
+        SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Chưa chọn đội hình thú.\nVào "Đội hình thú" để chọn linh thú ra trận.',
+            style: TextStyle(
+              color: _kInk,
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPets() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Đội hình thú',
+          style: TextStyle(
+            color: _kInk,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (var i = 0; i < pets.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _tooltipPet(pets[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _tooltipPet(_TeamPet pet) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: Image.asset(
+            CreatureRepository.imageAsset(pet.creature.id, stage: pet.stage),
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => Image.asset(
+              CreatureRepository.defaultImage,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 96,
+              child: Text(
+                pet.creature.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _kInk,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            _StarsRow(stars: pet.stars),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
-/// Một ô pet: emoji + nhãn cấp + thanh kinh nghiệm nhỏ.
-class _TeamPetTile extends StatelessWidget {
-  const _TeamPetTile({required this.emoji, required this.level});
-  final String emoji;
-  final int level;
+/// Mũi nhọn (tam giác hướng sang trái) của tooltip đội hình — nền kem, viền vàng.
+class _TooltipArrowPainter extends CustomPainter {
+  const _TooltipArrowPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(0, size.height / 2)
+      ..lineTo(size.width, size.height);
+    canvas.drawPath(path, Paint()..color = _kCream);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = _kBorder
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TooltipArrowPainter oldDelegate) => false;
+}
+
+/// Hàng sao tiến hóa (số sao đặc / tổng 5) — dùng trong popup đội hình.
+class _StarsRow extends StatelessWidget {
+  const _StarsRow({required this.stars});
+  final int stars;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF274B6D),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Lv. $level',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                _ProgressBar(progress: level / 10, height: 4),
-              ],
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 5; i++)
+          Icon(
+            i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+            size: 12,
+            color: _kGold,
           ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -1861,11 +2034,21 @@ class _EnemyFrame extends StatelessWidget {
   }
 }
 
-/// Sprite enemy: bình thường chạy `mini2.json` (loop kiểu yoyo). Khi đánh
-/// trúng ([hitTick] đổi) thì nhá đỏ; khi người chơi trả lời sai ([attackTick]
-/// đổi) thì phát một lượt `mini2_attack.json` rồi quay lại loop bình thường.
+/// Sprite enemy: nạp lottie theo [assetKey] của enemy trong JSON
+/// (`assets/lotties/enemy/<assetKey>.json` cho idle và
+/// `<assetKey>_attack.json` cho đòn phản công). Khi đánh trúng ([hitTick] đổi)
+/// thì nhá đỏ; khi người chơi trả lời sai ([attackTick] đổi) thì phát một lượt
+/// lottie attack rồi quay lại loop bình thường. [assetKey] rỗng → rơi về
+/// hoạt ảnh mặc định (`mini4`).
 class _EnemyVisual extends StatefulWidget {
-  const _EnemyVisual({required this.hitTick, required this.attackTick});
+  const _EnemyVisual({
+    required this.assetKey,
+    required this.hitTick,
+    required this.attackTick,
+  });
+
+  /// Khóa asset của enemy, ví dụ `common/tiger`, `boss/t-rex`.
+  final String assetKey;
   final int hitTick;
   final int attackTick;
 
@@ -1879,12 +2062,23 @@ class _EnemyVisualState extends State<_EnemyVisual>
   // nên ta tua nhanh qua toàn bộ khung hình trong khoảng này).
   static const _attackDuration = Duration(milliseconds: _kEnemyAttackMs);
 
+  /// Hoạt ảnh mặc định khi enemy chưa khai báo [assetKey].
+  static const _fallbackIdle = 'assets/lotties/enemy/mini4.json';
+  static const _fallbackAttack = 'assets/lotties/enemy/mini4_attack.json';
+
   late final AnimationController _attackCtrl;
   bool _attacking = false;
 
   /// Nạp sẵn composition lottie attack (file nặng ~2.8MB, 99 ảnh nhúng) để
   /// khi trả lời sai có thể phát ngay, không bị trễ giải mã làm "mất" hiệu ứng.
   LottieComposition? _attackComposition;
+
+  String get _idlePath => widget.assetKey.isEmpty
+      ? _fallbackIdle
+      : 'assets/lotties/enemy/${widget.assetKey}.json';
+  String get _attackPath => widget.assetKey.isEmpty
+      ? _fallbackAttack
+      : 'assets/lotties/enemy/${widget.assetKey}_attack.json';
 
   @override
   void initState() {
@@ -1899,20 +2093,35 @@ class _EnemyVisualState extends State<_EnemyVisual>
     _preloadAttack();
   }
 
+  /// Nạp composition lottie attack theo enemy hiện tại. Nếu asset riêng không
+  /// nạp được thì rơi về hoạt ảnh mặc định để vẫn có đòn phản công.
   Future<void> _preloadAttack() async {
+    final path = _attackPath;
     try {
-      final c = await AssetLottie(
-        'assets/lotties/enemy/mini4_attack.json',
-      ).load();
+      final c = await AssetLottie(path).load();
       if (mounted) setState(() => _attackComposition = c);
     } catch (e) {
-      debugPrint('Preload attack lottie failed: $e');
+      debugPrint('Preload attack lottie failed ($path): $e');
+      if (path != _fallbackAttack) {
+        try {
+          final c = await AssetLottie(_fallbackAttack).load();
+          if (mounted) setState(() => _attackComposition = c);
+        } catch (e) {
+          debugPrint('Preload fallback attack lottie failed: $e');
+        }
+      }
     }
   }
 
   @override
   void didUpdateWidget(covariant _EnemyVisual old) {
     super.didUpdateWidget(old);
+    // Đổi enemy (sang chặng khác) → nạp lại lottie attack cho asset mới.
+    if (widget.assetKey != old.assetKey) {
+      _attackComposition = null;
+      _attacking = false;
+      _preloadAttack();
+    }
     if (widget.attackTick != old.attackTick && widget.attackTick > 0) {
       // Chỉ phát khi composition đã sẵn sàng (đã nạp xong).
       if (_attackComposition != null) {
@@ -1932,13 +2141,24 @@ class _EnemyVisualState extends State<_EnemyVisual>
   }
 
   Widget _idleLottie() => Lottie.asset(
-    'assets/lotties/enemy/mini4.json',
+    _idlePath,
+    key: ValueKey(_idlePath),
     fit: BoxFit.contain,
     alignment: Alignment.center,
     repeat: true,
     reverse: true,
-    errorBuilder: (_, _, _) =>
-        const Center(child: Text('👾', style: TextStyle(fontSize: 72))),
+    // Asset riêng lỗi → thử hoạt ảnh mặc định, rồi mới tới emoji.
+    errorBuilder: (_, _, _) => _idlePath == _fallbackIdle
+        ? const Center(child: Text('👾', style: TextStyle(fontSize: 72)))
+        : Lottie.asset(
+            _fallbackIdle,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            repeat: true,
+            reverse: true,
+            errorBuilder: (_, _, _) =>
+                const Center(child: Text('👾', style: TextStyle(fontSize: 72))),
+          ),
   );
 
   @override

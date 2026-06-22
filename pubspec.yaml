@@ -65,6 +65,12 @@ flutter:
         - assets/images/checkpoint/checkpointCurrent/
         - assets/images/learningIslandScreen/
         - assets/images/learningIslandScreen/animals/
+        - assets/images/pets/
+        - assets/images/pets/common/
+        - assets/images/pets/rare/
+        - assets/images/pets/epic/
+        - assets/images/pets/legendary/
+        - assets/images/pets/puzzles/
         - assets/images/card_frame/
         - assets/images/eggs/
         - assets/images/task/
@@ -77,4 +83,9 @@ flutter:
         - assets/images/pet_detail_screen/system_pet/
         - assets/svgs/
         - assets/lotties/
+        - assets/lotties/egg/
+        - assets/lotties/pet/
         - assets/lotties/enemy/
+        - assets/lotties/enemy/common/
+        - assets/lotties/enemy/boss/
+        - assets/lotties/enemy/elite_boss/
