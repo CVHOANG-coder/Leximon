@@ -17,7 +17,8 @@ class IslandNodeComponent extends SpriteComponent {
     super.priority,
   }) : super(position: position, anchor: Anchor.center);
 
-  final IslandData data;
+  /// Có thể đổi (vd: khi mở khóa) để đảo sáng lên thay vì bị làm mờ.
+  IslandData data;
   bool isCurrent;
   final void Function(IslandData data)? onTap;
 

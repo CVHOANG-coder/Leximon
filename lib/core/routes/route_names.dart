@@ -9,6 +9,7 @@ class RouteNames {
   static const String lesson = '/lesson/:topicId';
   static const String profile = '/profile';
   static const String learningIsland = '/learning-island';
+  static const String homeVillage = '/home-village';
   static const String inventory = '/inventory';
   static const String team = '/team';
 }

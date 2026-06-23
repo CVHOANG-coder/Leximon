@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/screens/collection/collection_screen.dart';
 import '../../presentation/screens/creature_detail/creature_detail_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
+import '../../presentation/screens/home_village/home_village_screen.dart';
 import '../../presentation/screens/inventory/inventory_screen.dart';
 import '../../presentation/screens/island_map/island_map_screen.dart';
 import '../../presentation/screens/learning_island/learning_island_screen.dart';
@@ -53,6 +54,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.learningIsland,
       builder: (_, __) => const LearningIslandScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.homeVillage,
+      builder: (_, __) => const HomeVillageScreen(),
     ),
     GoRoute(
       path: RouteNames.inventory,

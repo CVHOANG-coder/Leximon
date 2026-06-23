@@ -155,6 +155,27 @@ class RewardService {
     if (r < 0.98) return 'epic';
     return 'legendary';
   }
+
+  /// Chọn rarity của thú khi nở trứng theo `eggHatchRate` (reward_rule.json).
+  /// [eggType]: 'common' | 'rare'. Cộng dồn xác suất theo thứ tự
+  /// common → rare → epic → legendary.
+  String rollEggHatchRarity(String eggType) {
+    final rates = _eggHatchRate[eggType] ?? _eggHatchRate['common']!;
+    final r = _rng.nextDouble();
+    var acc = 0.0;
+    for (final entry in rates.entries) {
+      acc += entry.value;
+      if (r < acc) return entry.key;
+    }
+    return rates.keys.last;
+  }
+
+  // Tỉ lệ rarity khi nở mỗi loại trứng (reward_rule.json → eggHatchRate).
+  // Map literal giữ nguyên thứ tự chèn nên cộng dồn đúng common→legendary.
+  static const _eggHatchRate = <String, Map<String, double>>{
+    'common': {'common': 0.72, 'rare': 0.2, 'epic': 0.07, 'legendary': 0.01},
+    'rare': {'common': 0.35, 'rare': 0.4, 'epic': 0.2, 'legendary': 0.05},
+  };
 }
 
 class _DifficultyBase {

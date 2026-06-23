@@ -26,6 +26,10 @@ class FogCloudComponent extends SpriteComponent {
   double _t = 0;
   late Vector2 _basePos;
 
+  /// Khi đảo được mở khóa, mây tan ra 2 bên (do effect điều khiển vị trí).
+  /// Lúc này ngừng tự dao động để effect không bị ghi đè.
+  bool dispersing = false;
+
   @override
   Future<void> onLoad() async {
     try {
@@ -37,6 +41,7 @@ class FogCloudComponent extends SpriteComponent {
 
   @override
   void update(double dt) {
+    if (dispersing) return; // effect đang điều khiển vị trí khi tan mây
     _t += dt;
     position.x = _basePos.x + math.sin(_t * 0.25 + bobPhase) * 18;
     position.y = _basePos.y + math.sin(_t * 0.18 + bobPhase * 1.3) * 6;

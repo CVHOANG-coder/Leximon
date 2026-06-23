@@ -28,13 +28,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       islands: IslandData.defaults,
       // currentIslandIndex omitted — defaults to the last unlocked island
       onIslandTapped: (island) {
-        if (island.id == 'learning') {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            if (!mounted) return;
-            await context.push('/learning-island');
-            if (mounted) _loadProfile();
-          });
-        }
+        // Mọi đảo đã mở khóa đều vào được: đảo Học tập có màn riêng,
+        // các đảo khác dùng màn bản đồ đảo chung (/island/:id).
+        final location = switch (island.id) {
+          'learning' => '/learning-island',
+          'home' => '/home-village',
+          _ => '/island/${island.id}',
+        };
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          await context.push(location);
+          if (mounted) _loadProfile();
+        });
       },
     );
   }

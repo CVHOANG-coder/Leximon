@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart' show Color;
+import 'package:flutter/material.dart' show Color, Curves;
 
 import 'components/boat_component.dart';
 import 'components/fog_cloud.dart';
@@ -21,7 +22,7 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
     int? currentIslandIndex,
     this.onIslandSelected,
     this.onIslandTapped,
-  })  : _islands = islands ?? IslandData.defaults,
+  })  : _islands = List<IslandData>.of(islands ?? IslandData.defaults),
         _currentIdx = currentIslandIndex ??
             _lastUnlockedIndex(islands ?? IslandData.defaults);
 
@@ -57,6 +58,14 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
   double _scrollOffset = 0;
   double _maxScroll = 0;
   bool _boatMoving = false;
+
+  /// Ổ khóa và mây che phủ theo từng đảo bị khóa — giữ tham chiếu để chạy
+  /// hiệu ứng mở khóa (rung → vỡ → biến mất; mây tan sang 2 bên).
+  final Map<int, SpriteComponent> _lockByIsland = {};
+  final Map<int, List<FogCloudComponent>> _cloudsByIsland = {};
+
+  /// Các đảo đang chạy hiệu ứng mở khóa (chặn bấm lặp).
+  final Set<int> _unlocking = {};
 
   // ── Coordinate helpers ────────────────────────────────────────────────────
 
@@ -145,14 +154,16 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
         final xOff = (c - 1) * 75.0 + rng.nextDouble() * 20 - 10;
         final yOff = (c == 1 ? -30.0 : 0.0) + rng.nextDouble() * 10 - 5;
         // priority 40 — clouds above islands (fog of war on top)
-        await _world.add(FogCloudComponent(
+        final cloud = FogCloudComponent(
           position: center + Vector2(xOff, yOff),
           assetName: cloudFiles[rng.nextInt(cloudFiles.length)],
           driftSpeed: (rng.nextDouble() * 10 - 5),
           worldWidth: size.x,
           bobPhase: rng.nextDouble() * math.pi * 2,
           priority: 40,
-        ));
+        );
+        (_cloudsByIsland[i] ??= []).add(cloud);
+        await _world.add(cloud);
       }
     }
   }
@@ -166,13 +177,15 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
     }
     for (var i = 0; i < _islands.length; i++) {
       if (_islands[i].unlocked) continue;
-      await _world.add(SpriteComponent(
+      final lock = SpriteComponent(
         sprite: lockSprite,
         position: _islandPos(i),
         size: Vector2(52, 62),
         anchor: Anchor.center,
         priority: 50,
-      ));
+      );
+      _lockByIsland[i] = lock;
+      await _world.add(lock);
     }
   }
 
@@ -216,16 +229,29 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
 
     final target = _islands[idx];
 
-    // Tap vào đảo hiện tại → navigate ngay
-    if (idx == _currentIdx) {
+    // Đảo đã mở khóa → vào thẳng bên trong (bất kể có phải đảo thuyền đang
+    // đậu hay không).
+    if (target.unlocked) {
       onIslandTapped?.call(target);
       return;
     }
 
-    // The boat can only travel to islands that are already unlocked.
-    if (!target.unlocked) return;
+    // Đảo còn khóa: chỉ mở được lần lượt — đúng đảo kế tiếp ngay sau đảo cuối
+    // đã mở khóa mới mở được; các đảo xa hơn vẫn khóa.
+    if (idx != _lastUnlockedIndex(_islands) + 1) return;
 
-    // Build path from current island to target (can be multiple hops)
+    // Chạy hiệu ứng mở khóa (rung → vỡ → tan mây) rồi cho thuyền tới đảo đó.
+    _unlockIsland(idx);
+  }
+
+  /// Cho thuyền đi từ đảo hiện tại đến [idx] theo đường (có thể nhiều chặng),
+  /// cập nhật đảo hiện tại khi tới nơi.
+  void _travelBoatTo(int idx) {
+    if (idx == _currentIdx) {
+      _boatMoving = false;
+      return;
+    }
+
     final step = idx > _currentIdx ? 1 : -1;
     final pathPoints = <Vector2>[];
     var from = _currentIdx;
@@ -241,7 +267,7 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
     }
 
     _boatMoving = true;
-    onIslandSelected?.call(target);
+    onIslandSelected?.call(_islands[idx]);
 
     // Scroll toward destination while boat travels
     _scrollTo(idx);
@@ -250,6 +276,77 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
       _updateCurrentIsland(idx);
       _boatMoving = false;
     });
+  }
+
+  /// Hiệu ứng mở khóa một đảo:
+  /// 1. Ổ khóa rung rung tại chỗ.
+  /// 2. Đổi sang ảnh khóa vỡ (`unlock_chain.png`), bật nảy nhẹ.
+  /// 3. Khóa mờ dần + rơi xuống rồi biến mất.
+  /// 4. Mây che tan ra 2 bên (trái/phải tùy vị trí) và mờ dần.
+  /// 5. Đảo sáng lên (hết bị làm mờ) và được đánh dấu đã mở khóa.
+  /// 6. Thuyền di chuyển tới đảo vừa mở (đảo cuối đã mở khóa).
+  Future<void> _unlockIsland(int idx) async {
+    if (_unlocking.contains(idx)) return;
+    _unlocking.add(idx);
+    // Chặn mọi thao tác khác trong lúc mở khóa.
+    _boatMoving = true;
+
+    final lock = _lockByIsland.remove(idx);
+    final clouds = _cloudsByIsland.remove(idx) ?? const <FogCloudComponent>[];
+    final center = _islandPos(idx);
+
+    // ── 1. Khóa rung rung ───────────────────────────────────────────────
+    if (lock != null) {
+      lock.add(RotateEffect.by(
+        0.20,
+        EffectController(duration: 0.05, alternate: true, repeatCount: 8),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 480));
+
+      // ── 2. Đổi sang ảnh khóa vỡ + nảy nhẹ ─────────────────────────────
+      try {
+        lock.sprite = await Sprite.load('homeScreen/unlock_chain.png');
+      } catch (_) {}
+      lock.add(ScaleEffect.by(
+        Vector2.all(1.25),
+        EffectController(duration: 0.12, alternate: true),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 240));
+
+      // ── 3. Khóa mờ dần + rơi xuống rồi biến mất ───────────────────────
+      lock
+        ..add(OpacityEffect.fadeOut(EffectController(duration: 0.35)))
+        ..add(MoveByEffect(
+          Vector2(0, 24),
+          EffectController(duration: 0.35, curve: Curves.easeIn),
+        ))
+        ..add(RemoveEffect(delay: 0.4));
+    }
+
+    // ── 4. Mây tan ra 2 bên + mờ dần ─────────────────────────────────────
+    for (final cloud in clouds) {
+      cloud.dispersing = true;
+      final dir = cloud.position.x >= center.x ? 1.0 : -1.0;
+      cloud
+        ..add(MoveByEffect(
+          Vector2(dir * 280, -20),
+          EffectController(duration: 0.7, curve: Curves.easeOut),
+        ))
+        ..add(OpacityEffect.fadeOut(EffectController(duration: 0.7)))
+        ..add(RemoveEffect(delay: 0.75));
+    }
+
+    // ── 5. Đảo sáng lên + đánh dấu đã mở khóa ────────────────────────────
+    _islands[idx] = _islands[idx].copyWith(unlocked: true);
+    _islandNodes[idx].data = _islands[idx];
+
+    // Chờ mây tan bớt để lộ đảo, rồi cho thuyền tiến tới đảo vừa mở.
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    _unlocking.remove(idx);
+
+    // ── 6. Thuyền di chuyển tới đảo mới ──────────────────────────────────
+    // _travelBoatTo sẽ tự giữ/nhả _boatMoving cho tới khi thuyền cập bến.
+    _travelBoatTo(idx);
   }
 
   void _updateCurrentIsland(int newIdx) {

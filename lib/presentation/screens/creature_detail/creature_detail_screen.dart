@@ -336,11 +336,15 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                   ),
                   // Tên + chip đảo + nút chức năng (cột bên trái).
                   Positioned(
-                    left: 12,
-                    top: 12,
+                    left: 0,
+                    top: 0,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Khung "Độ hiếm" + tên độ hiếm (khung lấy từ assets,
+                        // chia theo từng cấp độ hiếm).
+                        _RarityFrame(rarity: c.rarity),
+                        const SizedBox(height: 4),
                         // Chip đảo (nền kem, icon đảo + tên đảo rút gọn).
                         _Pill(
                           color: _kCream,
@@ -368,20 +372,6 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        _HeroActionButton(
-                          asset:
-                              'assets/images/pet_detail_screen/system_pet/study.png',
-                          label: 'Học tập',
-                          onTap: () => _comingSoon('Học tập'),
-                        ),
-                        const SizedBox(height: 10),
-                        _HeroActionButton(
-                          asset:
-                              'assets/images/pet_detail_screen/system_pet/remember.png',
-                          label: 'Ghi nhớ',
-                          onTap: () => _comingSoon('Ghi nhớ'),
                         ),
                       ],
                     ),
@@ -1074,71 +1064,107 @@ class _CircleButton extends StatelessWidget {
   }
 }
 
-class _HeroActionButton extends StatelessWidget {
-  const _HeroActionButton({
-    required this.asset,
-    required this.label,
-    required this.onTap,
-  });
-  final String asset;
-  final String label;
-  final VoidCallback onTap;
+/// Khung hiển thị độ hiếm: khung trang trí lấy từ assets (chia theo từng cấp
+/// độ hiếm) với chữ "Độ hiếm" đè lên, kèm thẻ kem ghi tên độ hiếm bên dưới.
+class _RarityFrame extends StatelessWidget {
+  const _RarityFrame({required this.rarity});
+
+  /// Một trong: common | rare | epic | legendary.
+  final String rarity;
+
+  /// Bề rộng cố định của khung trong cột chức năng bên trái thẻ.
+  static const double _width = 116;
+
+  static const _frames = <String, String>{
+    'common': 'assets/images/pet_detail_screen/frame_ rarity_common.png',
+    'rare': 'assets/images/pet_detail_screen/frame_ rarity_rare.png',
+    'epic': 'assets/images/pet_detail_screen/frame_ rarity_epic.png',
+    'legendary': 'assets/images/pet_detail_screen/frame_ rarity_legendary.png',
+  };
+
+  static const _labels = <String, String>{
+    'common': 'Phổ thông',
+    'rare': 'Hiếm',
+    'epic': 'Sử thi',
+    'legendary': 'Huyền thoại',
+  };
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
+    final frame = _frames[rarity] ?? _frames['common']!;
+    final label = _labels[rarity] ?? _labels['common']!;
+    // Dùng Stack để khung độ hiếm đè LÊN TRÊN thẻ kem: thẻ kem vẽ trước (nằm
+    // dưới), khung vẽ sau (nổi lên trên), phần đáy khung che mép trên thẻ kem.
+    return SizedBox(
+      width: _width,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF7FB0FF),
-                  Color(0xFF2F6BFF),
-                  Color(0xFF1F4FCC),
+          // Thẻ kem ghi tên độ hiếm — đẩy xuống để mép trên nằm dưới khung.
+          // Padding(
+          //   padding: const EdgeInsets.only(top: 42),
+          //   child: Container(
+          //     width: _width - 12,
+          //     padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+          //     decoration: BoxDecoration(
+          //       color: _kCream,
+          //       borderRadius: BorderRadius.circular(12),
+          //       border: Border.all(color: _kBorder, width: 2.5),
+          //       boxShadow: const [
+          //         BoxShadow(
+          //           color: Colors.black38,
+          //           blurRadius: 4,
+          //           offset: Offset(0, 2),
+          //         ),
+          //       ],
+          //     ),
+          //     child: Text(
+          //       label,
+          //       textAlign: TextAlign.center,
+          //       maxLines: 1,
+          //       style: const TextStyle(
+          //         color: _kInk,
+          //         fontSize: 14,
+          //         fontWeight: FontWeight.w900,
+          //       ),
+          //     ),
+          //   ),
+          // ),
+          // Khung độ hiếm (ảnh asset) + chữ "Độ hiếm" đè ở phần thân khung,
+          // canh xuống dưới ngôi sao trang trí phía trên.
+          SizedBox(
+            width: _width,
+            child: AspectRatio(
+              aspectRatio: 430 / 205,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    frame,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                  Align(
+                    alignment: const Alignment(0, 0.42),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
-                stops: [0.0, 0.55, 1.0],
               ),
-              borderRadius: BorderRadius.circular(48),
-              border: Border.all(color: const Color(0xFFfbc573), width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black45,
-                  blurRadius: 5,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Image.asset(
-                asset,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              shadows: [
-                Shadow(
-                  color: Colors.black,
-                  blurRadius: 3,
-                  offset: Offset(0, 1),
-                ),
-                Shadow(color: Colors.black54, blurRadius: 4),
-              ],
             ),
           ),
         ],

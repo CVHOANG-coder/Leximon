@@ -6,6 +6,7 @@ import 'package:lottie/lottie.dart';
 import '../../../data/models/creature.dart';
 import '../../../data/repositories/creature_repository.dart';
 import '../../../data/repositories/inventory_repository.dart';
+import '../../../data/services/reward_service.dart';
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const _kInk = Color(0xFF1E3A5F);
@@ -80,7 +81,15 @@ class _EggHatchScreenState extends State<EggHatchScreen>
         if (CreatureRepository.hasOwnImage(c.id)) c,
     ];
     if (pool.isEmpty || !mounted) return;
-    final picked = pool[Random().nextInt(pool.length)];
+    // Tỉ lệ rarity bám theo reward_rule.json → eggHatchRate, rồi mới chọn thú
+    // trong nhóm rarity đó. Không có thú đúng rarity → rơi về toàn bộ pool.
+    final rarity = RewardService.instance.rollEggHatchRarity(widget.eggType);
+    final byRarity = [
+      for (final c in pool)
+        if (c.rarity == rarity) c,
+    ];
+    final rarityPool = byRarity.isNotEmpty ? byRarity : pool;
+    final picked = rarityPool[Random().nextInt(rarityPool.length)];
     setState(() {
       _result = picked;
       _isDuplicate = owned.contains(picked.id);
@@ -198,29 +207,39 @@ class _EggHatchScreenState extends State<EggHatchScreen>
             left: w * 0.26,
             child: cloud('clouds_2.png', w * 0.5, flip: true),
           ),
+          Positioned(
+            top: 0,
+            left: 0,
+            child: cloud('clouds_6.png', w, flip: true),
+          ),
 
-          // ── Dải mây dưới (đã dịch lên): nền đặc ở đáy + mây hướng lên ──
+          // ── Dải mây dưới (cao hơn, nhiều mây hơn): nền đặc ở đáy + mây hướng lên ──
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            height: h * 0.06,
+            height: h * 0.14,
             child: const ColoredBox(color: cloudColor),
           ),
           Positioned(
-            bottom: h * 0.04,
-            left: -w * 0.12,
-            child: cloud('clouds_4.png', w * 0.64),
-          ),
-          Positioned(
-            bottom: h * 0.05,
-            right: -w * 0.12,
-            child: cloud('clouds_1.png', w * 0.62),
-          ),
-          Positioned(
             bottom: h * 0.10,
-            left: w * 0.28,
-            child: cloud('clouds_2.png', w * 0.48),
+            left: -w * 0.12,
+            child: cloud('clouds_4.png', w * 0.7),
+          ),
+          Positioned(
+            bottom: h * 0.11,
+            right: -w * 0.14,
+            child: cloud('clouds_1.png', w * 0.72),
+          ),
+          Positioned(
+            bottom: h * 0.07,
+            left: w * 0.04,
+            child: cloud('clouds_3.png', w * 0.5),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            child: cloud('clouds_6.png', w),
           ),
         ],
       ),
