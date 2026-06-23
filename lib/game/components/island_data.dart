@@ -34,16 +34,19 @@ class IslandData {
       id: 'home',
       name: 'Home Village',
       assetName: 'Home_Village.png',
+      unlocked: true,
     ),
     IslandData(
       id: 'ocean_kingdom',
       name: 'Ocean Kingdom',
       assetName: 'Ocean_Kingdom.png',
+      unlocked: true,
     ),
     IslandData(
       id: 'nature',
       name: 'Nature Island',
       assetName: 'nature_island.png',
+      unlocked: true,
     ),
     IslandData(
       id: 'city',

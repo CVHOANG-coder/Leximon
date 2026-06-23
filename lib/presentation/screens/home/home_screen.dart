@@ -32,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // các đảo khác dùng màn bản đồ đảo chung (/island/:id).
         final location = switch (island.id) {
           'learning' => '/learning-island',
+          'ocean_kingdom' => '/ocean-kingdom',
+          'nature' => '/nature-island',
           'home' => '/home-village',
           _ => '/island/${island.id}',
         };

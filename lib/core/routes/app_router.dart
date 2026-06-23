@@ -8,6 +8,8 @@ import '../../presentation/screens/inventory/inventory_screen.dart';
 import '../../presentation/screens/island_map/island_map_screen.dart';
 import '../../presentation/screens/learning_island/learning_island_screen.dart';
 import '../../presentation/screens/lesson/lesson_screen.dart';
+import '../../presentation/screens/nature_island/nature_island_screen.dart';
+import '../../presentation/screens/ocean_kingdom/ocean_kingdom_screen.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/team/team_screen.dart';
@@ -54,6 +56,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.learningIsland,
       builder: (_, __) => const LearningIslandScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.oceanKingdom,
+      builder: (_, __) => const OceanKingdomScreen(),
+    ),
+    GoRoute(
+      path: RouteNames.natureIsland,
+      builder: (_, __) => const NatureIslandScreen(),
     ),
     GoRoute(
       path: RouteNames.homeVillage,

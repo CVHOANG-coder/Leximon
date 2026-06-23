@@ -64,6 +64,8 @@ flutter:
         - assets/images/checkpoint/
         - assets/images/checkpoint/checkpointCurrent/
         - assets/images/learningIslandScreen/
+        - assets/images/oceanKingdom/
+        - assets/images/natureIsland/
         - assets/images/homeVillage/
         - assets/images/pets/
         - assets/images/pets/common/
