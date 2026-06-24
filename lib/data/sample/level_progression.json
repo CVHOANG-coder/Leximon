@@ -1,0 +1,1328 @@
+{
+  "schemaVersion": 1,
+  "configId": "player_level_progression_v1",
+  "maxLevel": 60,
+  "claimPolicy": "once_per_account_on_reach",
+  "balanceAssumptions": {
+    "averageXpPerPassedStage": 25,
+    "xpSource": "Current game rule: correctAnswers * 5 XP. The estimate assumes roughly 5 correct answers per passed stage.",
+    "targetPacing": "About 4-8 passed stages per early level, 10-25 per mid level, and 25-45 per late level.",
+    "xpFormula": "xpToNextLevel = 80 + 8 * (level - 1) + floor((level - 1)^2 / 6)",
+    "economy": "Level rewards supplement stage rewards. Coin and food are guaranteed; rare resources are concentrated at milestones to preserve their value.",
+    "rewardCadence": {
+      "commonShardEveryLevels": 3,
+      "rareShardAndEvolutionStoneEveryLevels": 5,
+      "commonEggEveryLevels": 10,
+      "epicShardEveryLevels": 15,
+      "rareEggEveryLevels": 20,
+      "legendaryShardEveryLevels": 30
+    },
+    "shardSelection": "For creatureShard rewards, select a creature of the stated rarity from the player's current island pool. If unavailable, use the global pool.",
+    "maxLevelBehavior": "At level 60, XP no longer advances until the level cap is increased. Continue granting normal stage rewards."
+  },
+  "levels": [
+    {
+      "level": 1,
+      "totalXpRequired": 0,
+      "xpToNextLevel": 80,
+      "estimatedPassedStagesToNextLevel": 4,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 100
+        },
+        {
+          "type": "food",
+          "amount": 100
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 2,
+      "totalXpRequired": 80,
+      "xpToNextLevel": 88,
+      "estimatedPassedStagesToNextLevel": 4,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 60
+        },
+        {
+          "type": "food",
+          "amount": 45
+        }
+      ]
+    },
+    {
+      "level": 3,
+      "totalXpRequired": 168,
+      "xpToNextLevel": 96,
+      "estimatedPassedStagesToNextLevel": 4,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 60
+        },
+        {
+          "type": "food",
+          "amount": 55
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 4,
+      "totalXpRequired": 264,
+      "xpToNextLevel": 105,
+      "estimatedPassedStagesToNextLevel": 5,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 70
+        },
+        {
+          "type": "food",
+          "amount": 60
+        }
+      ]
+    },
+    {
+      "level": 5,
+      "totalXpRequired": 369,
+      "xpToNextLevel": 114,
+      "estimatedPassedStagesToNextLevel": 5,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 120
+        },
+        {
+          "type": "food",
+          "amount": 100
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 1
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 6,
+      "totalXpRequired": 483,
+      "xpToNextLevel": 124,
+      "estimatedPassedStagesToNextLevel": 5,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 90
+        },
+        {
+          "type": "food",
+          "amount": 70
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 7,
+      "totalXpRequired": 607,
+      "xpToNextLevel": 134,
+      "estimatedPassedStagesToNextLevel": 6,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 100
+        },
+        {
+          "type": "food",
+          "amount": 75
+        }
+      ]
+    },
+    {
+      "level": 8,
+      "totalXpRequired": 741,
+      "xpToNextLevel": 144,
+      "estimatedPassedStagesToNextLevel": 6,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 100
+        },
+        {
+          "type": "food",
+          "amount": 85
+        }
+      ]
+    },
+    {
+      "level": 9,
+      "totalXpRequired": 885,
+      "xpToNextLevel": 154,
+      "estimatedPassedStagesToNextLevel": 7,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 110
+        },
+        {
+          "type": "food",
+          "amount": 90
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 10,
+      "totalXpRequired": 1039,
+      "xpToNextLevel": 165,
+      "estimatedPassedStagesToNextLevel": 7,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 240
+        },
+        {
+          "type": "food",
+          "amount": 190
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 1
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 1
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 11,
+      "totalXpRequired": 1204,
+      "xpToNextLevel": 176,
+      "estimatedPassedStagesToNextLevel": 8,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 130
+        },
+        {
+          "type": "food",
+          "amount": 100
+        }
+      ]
+    },
+    {
+      "level": 12,
+      "totalXpRequired": 1380,
+      "xpToNextLevel": 188,
+      "estimatedPassedStagesToNextLevel": 8,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 140
+        },
+        {
+          "type": "food",
+          "amount": 105
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 13,
+      "totalXpRequired": 1568,
+      "xpToNextLevel": 200,
+      "estimatedPassedStagesToNextLevel": 8,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 140
+        },
+        {
+          "type": "food",
+          "amount": 115
+        }
+      ]
+    },
+    {
+      "level": 14,
+      "totalXpRequired": 1768,
+      "xpToNextLevel": 212,
+      "estimatedPassedStagesToNextLevel": 9,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 150
+        },
+        {
+          "type": "food",
+          "amount": 120
+        }
+      ]
+    },
+    {
+      "level": 15,
+      "totalXpRequired": 1980,
+      "xpToNextLevel": 224,
+      "estimatedPassedStagesToNextLevel": 9,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 240
+        },
+        {
+          "type": "food",
+          "amount": 190
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 3
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 1
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 1
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "epic",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 16,
+      "totalXpRequired": 2204,
+      "xpToNextLevel": 237,
+      "estimatedPassedStagesToNextLevel": 10,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 170
+        },
+        {
+          "type": "food",
+          "amount": 130
+        }
+      ]
+    },
+    {
+      "level": 17,
+      "totalXpRequired": 2441,
+      "xpToNextLevel": 250,
+      "estimatedPassedStagesToNextLevel": 10,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 180
+        },
+        {
+          "type": "food",
+          "amount": 135
+        }
+      ]
+    },
+    {
+      "level": 18,
+      "totalXpRequired": 2691,
+      "xpToNextLevel": 264,
+      "estimatedPassedStagesToNextLevel": 11,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 180
+        },
+        {
+          "type": "food",
+          "amount": 145
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "level": 19,
+      "totalXpRequired": 2955,
+      "xpToNextLevel": 278,
+      "estimatedPassedStagesToNextLevel": 12,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 190
+        },
+        {
+          "type": "food",
+          "amount": 150
+        }
+      ]
+    },
+    {
+      "level": 20,
+      "totalXpRequired": 3233,
+      "xpToNextLevel": 292,
+      "estimatedPassedStagesToNextLevel": 12,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 400
+        },
+        {
+          "type": "food",
+          "amount": 310
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 2
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 2
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        },
+        {
+          "type": "rareEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 21,
+      "totalXpRequired": 3525,
+      "xpToNextLevel": 306,
+      "estimatedPassedStagesToNextLevel": 13,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 210
+        },
+        {
+          "type": "food",
+          "amount": 160
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "level": 22,
+      "totalXpRequired": 3831,
+      "xpToNextLevel": 321,
+      "estimatedPassedStagesToNextLevel": 13,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 220
+        },
+        {
+          "type": "food",
+          "amount": 165
+        }
+      ]
+    },
+    {
+      "level": 23,
+      "totalXpRequired": 4152,
+      "xpToNextLevel": 336,
+      "estimatedPassedStagesToNextLevel": 14,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 220
+        },
+        {
+          "type": "food",
+          "amount": 175
+        }
+      ]
+    },
+    {
+      "level": 24,
+      "totalXpRequired": 4488,
+      "xpToNextLevel": 352,
+      "estimatedPassedStagesToNextLevel": 15,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 230
+        },
+        {
+          "type": "food",
+          "amount": 180
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "level": 25,
+      "totalXpRequired": 4840,
+      "xpToNextLevel": 368,
+      "estimatedPassedStagesToNextLevel": 15,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 360
+        },
+        {
+          "type": "food",
+          "amount": 280
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 2
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 26,
+      "totalXpRequired": 5208,
+      "xpToNextLevel": 384,
+      "estimatedPassedStagesToNextLevel": 16,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 250
+        },
+        {
+          "type": "food",
+          "amount": 190
+        }
+      ]
+    },
+    {
+      "level": 27,
+      "totalXpRequired": 5592,
+      "xpToNextLevel": 400,
+      "estimatedPassedStagesToNextLevel": 16,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 260
+        },
+        {
+          "type": "food",
+          "amount": 195
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "level": 28,
+      "totalXpRequired": 5992,
+      "xpToNextLevel": 417,
+      "estimatedPassedStagesToNextLevel": 17,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 260
+        },
+        {
+          "type": "food",
+          "amount": 205
+        }
+      ]
+    },
+    {
+      "level": 29,
+      "totalXpRequired": 6409,
+      "xpToNextLevel": 434,
+      "estimatedPassedStagesToNextLevel": 18,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 270
+        },
+        {
+          "type": "food",
+          "amount": 210
+        }
+      ]
+    },
+    {
+      "level": 30,
+      "totalXpRequired": 6843,
+      "xpToNextLevel": 452,
+      "estimatedPassedStagesToNextLevel": 19,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 560
+        },
+        {
+          "type": "food",
+          "amount": 430
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 4
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 2
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 2
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "epic",
+          "amount": 2
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "legendary",
+          "amount": 1
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 31,
+      "totalXpRequired": 7295,
+      "xpToNextLevel": 470,
+      "estimatedPassedStagesToNextLevel": 19,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 290
+        },
+        {
+          "type": "food",
+          "amount": 220
+        }
+      ]
+    },
+    {
+      "level": 32,
+      "totalXpRequired": 7765,
+      "xpToNextLevel": 488,
+      "estimatedPassedStagesToNextLevel": 20,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 300
+        },
+        {
+          "type": "food",
+          "amount": 225
+        }
+      ]
+    },
+    {
+      "level": 33,
+      "totalXpRequired": 8253,
+      "xpToNextLevel": 506,
+      "estimatedPassedStagesToNextLevel": 21,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 300
+        },
+        {
+          "type": "food",
+          "amount": 235
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "level": 34,
+      "totalXpRequired": 8759,
+      "xpToNextLevel": 525,
+      "estimatedPassedStagesToNextLevel": 21,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 310
+        },
+        {
+          "type": "food",
+          "amount": 240
+        }
+      ]
+    },
+    {
+      "level": 35,
+      "totalXpRequired": 9284,
+      "xpToNextLevel": 544,
+      "estimatedPassedStagesToNextLevel": 22,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 480
+        },
+        {
+          "type": "food",
+          "amount": 370
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 2
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 36,
+      "totalXpRequired": 9828,
+      "xpToNextLevel": 564,
+      "estimatedPassedStagesToNextLevel": 23,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 330
+        },
+        {
+          "type": "food",
+          "amount": 250
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "level": 37,
+      "totalXpRequired": 10392,
+      "xpToNextLevel": 584,
+      "estimatedPassedStagesToNextLevel": 24,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 340
+        },
+        {
+          "type": "food",
+          "amount": 255
+        }
+      ]
+    },
+    {
+      "level": 38,
+      "totalXpRequired": 10976,
+      "xpToNextLevel": 604,
+      "estimatedPassedStagesToNextLevel": 25,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 340
+        },
+        {
+          "type": "food",
+          "amount": 265
+        }
+      ]
+    },
+    {
+      "level": 39,
+      "totalXpRequired": 11580,
+      "xpToNextLevel": 624,
+      "estimatedPassedStagesToNextLevel": 25,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 350
+        },
+        {
+          "type": "food",
+          "amount": 270
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "level": 40,
+      "totalXpRequired": 12204,
+      "xpToNextLevel": 645,
+      "estimatedPassedStagesToNextLevel": 26,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 720
+        },
+        {
+          "type": "food",
+          "amount": 550
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 3
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 3
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        },
+        {
+          "type": "rareEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 41,
+      "totalXpRequired": 12849,
+      "xpToNextLevel": 666,
+      "estimatedPassedStagesToNextLevel": 27,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 370
+        },
+        {
+          "type": "food",
+          "amount": 280
+        }
+      ]
+    },
+    {
+      "level": 42,
+      "totalXpRequired": 13515,
+      "xpToNextLevel": 688,
+      "estimatedPassedStagesToNextLevel": 28,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 380
+        },
+        {
+          "type": "food",
+          "amount": 285
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "level": 43,
+      "totalXpRequired": 14203,
+      "xpToNextLevel": 710,
+      "estimatedPassedStagesToNextLevel": 29,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 380
+        },
+        {
+          "type": "food",
+          "amount": 295
+        }
+      ]
+    },
+    {
+      "level": 44,
+      "totalXpRequired": 14913,
+      "xpToNextLevel": 732,
+      "estimatedPassedStagesToNextLevel": 30,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 390
+        },
+        {
+          "type": "food",
+          "amount": 300
+        }
+      ]
+    },
+    {
+      "level": 45,
+      "totalXpRequired": 15645,
+      "xpToNextLevel": 754,
+      "estimatedPassedStagesToNextLevel": 31,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 600
+        },
+        {
+          "type": "food",
+          "amount": 460
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 3
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 3
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "epic",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "level": 46,
+      "totalXpRequired": 16399,
+      "xpToNextLevel": 777,
+      "estimatedPassedStagesToNextLevel": 32,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 410
+        },
+        {
+          "type": "food",
+          "amount": 310
+        }
+      ]
+    },
+    {
+      "level": 47,
+      "totalXpRequired": 17176,
+      "xpToNextLevel": 800,
+      "estimatedPassedStagesToNextLevel": 32,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 420
+        },
+        {
+          "type": "food",
+          "amount": 315
+        }
+      ]
+    },
+    {
+      "level": 48,
+      "totalXpRequired": 17976,
+      "xpToNextLevel": 824,
+      "estimatedPassedStagesToNextLevel": 33,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 420
+        },
+        {
+          "type": "food",
+          "amount": 325
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "level": 49,
+      "totalXpRequired": 18800,
+      "xpToNextLevel": 848,
+      "estimatedPassedStagesToNextLevel": 34,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 430
+        },
+        {
+          "type": "food",
+          "amount": 330
+        }
+      ]
+    },
+    {
+      "level": 50,
+      "totalXpRequired": 19648,
+      "xpToNextLevel": 872,
+      "estimatedPassedStagesToNextLevel": 35,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 880
+        },
+        {
+          "type": "food",
+          "amount": 670
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 3
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 3
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "level": 51,
+      "totalXpRequired": 20520,
+      "xpToNextLevel": 896,
+      "estimatedPassedStagesToNextLevel": 36,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 450
+        },
+        {
+          "type": "food",
+          "amount": 340
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "level": 52,
+      "totalXpRequired": 21416,
+      "xpToNextLevel": 921,
+      "estimatedPassedStagesToNextLevel": 37,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 460
+        },
+        {
+          "type": "food",
+          "amount": 345
+        }
+      ]
+    },
+    {
+      "level": 53,
+      "totalXpRequired": 22337,
+      "xpToNextLevel": 946,
+      "estimatedPassedStagesToNextLevel": 38,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 460
+        },
+        {
+          "type": "food",
+          "amount": 355
+        }
+      ]
+    },
+    {
+      "level": 54,
+      "totalXpRequired": 23283,
+      "xpToNextLevel": 972,
+      "estimatedPassedStagesToNextLevel": 39,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 470
+        },
+        {
+          "type": "food",
+          "amount": 360
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "level": 55,
+      "totalXpRequired": 24255,
+      "xpToNextLevel": 998,
+      "estimatedPassedStagesToNextLevel": 40,
+      "milestone": "minor",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 720
+        },
+        {
+          "type": "food",
+          "amount": 550
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 3
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "level": 56,
+      "totalXpRequired": 25253,
+      "xpToNextLevel": 1024,
+      "estimatedPassedStagesToNextLevel": 41,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 490
+        },
+        {
+          "type": "food",
+          "amount": 370
+        }
+      ]
+    },
+    {
+      "level": 57,
+      "totalXpRequired": 26277,
+      "xpToNextLevel": 1050,
+      "estimatedPassedStagesToNextLevel": 42,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 500
+        },
+        {
+          "type": "food",
+          "amount": 375
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "level": 58,
+      "totalXpRequired": 27327,
+      "xpToNextLevel": 1077,
+      "estimatedPassedStagesToNextLevel": 44,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 500
+        },
+        {
+          "type": "food",
+          "amount": 385
+        }
+      ]
+    },
+    {
+      "level": 59,
+      "totalXpRequired": 28404,
+      "xpToNextLevel": 1104,
+      "estimatedPassedStagesToNextLevel": 45,
+      "milestone": "normal",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 510
+        },
+        {
+          "type": "food",
+          "amount": 390
+        }
+      ]
+    },
+    {
+      "level": 60,
+      "totalXpRequired": 29508,
+      "xpToNextLevel": null,
+      "estimatedPassedStagesToNextLevel": null,
+      "milestone": "major",
+      "rewards": [
+        {
+          "type": "coin",
+          "amount": 1040
+        },
+        {
+          "type": "food",
+          "amount": 790
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "common",
+          "amount": 6
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "rare",
+          "amount": 4
+        },
+        {
+          "type": "evolutionStone",
+          "amount": 4
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "epic",
+          "amount": 3
+        },
+        {
+          "type": "creatureShard",
+          "rarity": "legendary",
+          "amount": 1
+        },
+        {
+          "type": "commonEgg",
+          "amount": 1
+        },
+        {
+          "type": "rareEgg",
+          "amount": 1
+        }
+      ]
+    }
+  ]
+}

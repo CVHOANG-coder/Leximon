@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 /// SQLite database lưu tiến độ học / chơi của người dùng trên local.
 ///
-/// Sơ đồ (schema v4):
+/// Sơ đồ (schema v5):
 ///
 /// - `user_profile`     : 1 dòng (id = 1) — cấp độ, XP, coin và các loại
 ///                        vật phẩm (food, chest, evolution_stone, trứng).
@@ -18,12 +18,13 @@ import 'package:sqflite/sqflite.dart';
 /// - `team_lineup`      : ĐỘI HÌNH RA TRẬN — thú nào đang được mang theo, mỗi
 ///                        dòng một ô (`slot`), trỏ tới `creature_inventory`.
 /// - `reward_log`       : nhật ký phần thưởng đã trao.
+/// - `daily_learning_activity`: dữ liệu học theo ngày cho streak và heatmap.
 class AppDatabase {
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'leximon.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
 
   /// Thú khởi đầu người chơi sở hữu sẵn: (creature_id, sao, giai đoạn, mảnh).
   /// 4 thú này đã có sẵn bộ ảnh trong assets.
@@ -62,6 +63,12 @@ class AppDatabase {
         evolution_stone INTEGER NOT NULL DEFAULT 0,
         common_egg      INTEGER NOT NULL DEFAULT 0,
         rare_egg        INTEGER NOT NULL DEFAULT 0,
+        current_streak  INTEGER NOT NULL DEFAULT 0,
+        longest_streak  INTEGER NOT NULL DEFAULT 0,
+        learning_days   INTEGER NOT NULL DEFAULT 0,
+        completed_stages INTEGER NOT NULL DEFAULT 0,
+        learned_words   INTEGER NOT NULL DEFAULT 0,
+        last_learning_date TEXT,
         created_at      INTEGER NOT NULL,           -- epoch millis
         updated_at      INTEGER NOT NULL
       )
@@ -119,6 +126,7 @@ class AppDatabase {
 
     await _createInventoryTables(db);
     await _createTeamTable(db);
+    await _createLearningActivityTable(db);
     // Người chơi mới bắt đầu KHÔNG có thú nào — chỉ được tặng trứng.
 
     // Hồ sơ mặc định: cấp 1, 0 XP, 0 coin; tặng 1 trứng hiếm + 2 trứng thường
@@ -177,6 +185,45 @@ class AppDatabase {
     if (oldVersion < 4) {
       // Đội hình ra trận chuyển từ SharedPreferences sang SQLite.
       await _createTeamTable(db);
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN current_streak INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN longest_streak INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN learning_days INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN completed_stages INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN learned_words INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE user_profile ADD COLUMN last_learning_date TEXT',
+      );
+      await _createLearningActivityTable(db);
+      await _backfillLearningActivity(db);
+
+      final learnedWords =
+          Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM word_progress'),
+          ) ??
+          0;
+      final completedStages =
+          Sqflite.firstIntValue(
+            await db.rawQuery(
+              'SELECT COUNT(*) FROM stage_progress WHERE passed = 1',
+            ),
+          ) ??
+          0;
+      await db.update('user_profile', {
+        'learned_words': learnedWords,
+        'completed_stages': completedStages,
+      }, where: 'id = 1');
     }
   }
 
@@ -241,6 +288,84 @@ class AppDatabase {
           ON DELETE CASCADE
       )
     ''');
+  }
+
+  Future<void> _createLearningActivityTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE daily_learning_activity (
+        activity_date      TEXT PRIMARY KEY, -- yyyy-MM-dd theo giờ địa phương
+        xp_earned          INTEGER NOT NULL DEFAULT 0,
+        correct_answers    INTEGER NOT NULL DEFAULT 0,
+        questions_answered INTEGER NOT NULL DEFAULT 0,
+        stages_played      INTEGER NOT NULL DEFAULT 0,
+        stages_completed   INTEGER NOT NULL DEFAULT 0,
+        updated_at         INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_daily_activity_date '
+      'ON daily_learning_activity(activity_date)',
+    );
+  }
+
+  /// Dùng lần chơi gần nhất của mỗi màn để tạo heatmap ban đầu cho dữ liệu cũ.
+  Future<void> _backfillLearningActivity(Database db) async {
+    final stages = await db.query(
+      'stage_progress',
+      columns: ['best_score', 'total_questions', 'passed', 'last_played_at'],
+    );
+    for (final stage in stages) {
+      final playedAt = DateTime.fromMillisecondsSinceEpoch(
+        stage['last_played_at'] as int,
+      );
+      final date = _dateKey(playedAt);
+      await db.rawInsert(
+        'INSERT INTO daily_learning_activity '
+        '(activity_date, correct_answers, questions_answered, stages_played, '
+        'stages_completed, updated_at) VALUES (?, ?, ?, 1, ?, ?) '
+        'ON CONFLICT(activity_date) DO UPDATE SET '
+        'correct_answers = correct_answers + excluded.correct_answers, '
+        'questions_answered = questions_answered + excluded.questions_answered, '
+        'stages_played = stages_played + 1, '
+        'stages_completed = stages_completed + excluded.stages_completed, '
+        'updated_at = MAX(updated_at, excluded.updated_at)',
+        [
+          date,
+          stage['best_score'] as int,
+          stage['total_questions'] as int,
+          stage['passed'] as int,
+          stage['last_played_at'] as int,
+        ],
+      );
+    }
+
+    final days = await db.query(
+      'daily_learning_activity',
+      columns: ['activity_date'],
+      orderBy: 'activity_date ASC',
+    );
+    var streak = 0;
+    var longestStreak = 0;
+    DateTime? previous;
+    for (final row in days) {
+      final date = DateTime.parse(row['activity_date'] as String);
+      streak = previous != null && date.difference(previous).inDays == 1
+          ? streak + 1
+          : 1;
+      if (streak > longestStreak) longestStreak = streak;
+      previous = date;
+    }
+    await db.update('user_profile', {
+      'current_streak': streak,
+      'longest_streak': longestStreak,
+      'learning_days': days.length,
+      'last_learning_date': previous == null ? null : _dateKey(previous),
+    }, where: 'id = 1');
+  }
+
+  static String _dateKey(DateTime date) {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    return '${date.year}-${twoDigits(date.month)}-${twoDigits(date.day)}';
   }
 
   Future<void> close() async {

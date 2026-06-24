@@ -227,15 +227,21 @@ A rare egg is much more valuable because it has a higher chance to hatch rare, e
 
 ---
 
-## 7. Performance Bonus
+## 7. Correct-answer Bonus
 
-The player's accuracy affects the final reward.
+The number of correct answers directly determines whether the stage is passed
+and the final reward. Stage stars are not used.
 
-| Accuracy | Stage Stars | Reward Multiplier | Extra Shard Chance |
+```text
+correctRate = correctAnswers / totalQuestions
+```
+
+| Correct answers | Result | Reward Multiplier | Extra Shard Chance |
 |---|---:|---:|---:|
-| 0% - 69% | 1 star | 0.7x | 0% |
-| 70% - 89% | 2 stars | 1.0x | 5% |
-| 90% - 100% | 3 stars | 1.25x | 12% |
+| Below 60% | Failed | No reward | 0% |
+| At least 60%, below 80% | Passed | 0.85x | 0% |
+| At least 80%, not perfect | Passed | 1.0x | 5% |
+| All questions correct | Perfect | 1.25x | 12% |
 
 This encourages players to replay stages for better performance without making progression feel blocked.
 
@@ -275,7 +281,7 @@ Example:
 Base coin roll: 24
 Stage difficulty: hard -> 1.5x
 Topic length: 7 stages -> 1.15x
-Performance: 3 stars -> 1.25x
+Performance: all questions correct -> 1.25x
 
 Final coin = 24 × 1.5 × 1.15 × 1.25 = 51.75
 Final coin = 52

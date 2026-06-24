@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/models/learning_activity.dart';
+import '../../../data/models/user_profile.dart';
+import '../../../data/repositories/progress_repository.dart';
+
 /// Formats an integer with `.` as the thousands separator (e.g. 4000 → 4.000).
 String _fmt(int n) {
   final s = n.toString();
@@ -14,10 +18,9 @@ String _fmt(int n) {
 /// Player profile ("Hồ sơ người chơi") — identity card, EXP progress,
 /// level rewards track and the monthly learning-activity heatmap.
 ///
-/// All artwork comes from `assets/images/profileInfo/` plus a few shared
-/// item icons (coin / egg / gem) reused from other folders. Numbers here are
-/// sample data; wire them to real player state when the model is ready.
-class ProfileScreen extends StatelessWidget {
+/// Dữ liệu EXP, level, heatmap và thống kê học tập được đọc từ SQLite qua
+/// [ProgressRepository].
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   static const String _assets = 'assets/images/profileInfo';
@@ -31,13 +34,26 @@ class ProfileScreen extends StatelessWidget {
   static const Color _blue = Color(0xFF2E6FB7);
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late Future<PlayerProgressOverview> _overview;
+
+  @override
+  void initState() {
+    super.initState();
+    _overview = ProgressRepository.instance.getPlayerProgressOverview();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF0C2A20),
           image: DecorationImage(
-            image: AssetImage('$_assets/background.png'),
+            image: AssetImage('${ProfileScreen._assets}/background.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -46,22 +62,54 @@ class ProfileScreen extends StatelessWidget {
             children: [
               const _TopBar(),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 20),
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    children: const [
-                      _IdentityCard(),
-                      SizedBox(height: 14),
-                      _LevelRewardsPanel(),
-                      SizedBox(height: 14),
-                      _ActivityPanel(),
-                      SizedBox(height: 14),
-                      _StatsPanel(),
-                      SizedBox(height: 14),
-                      _MascotBanner(),
-                    ],
-                  ),
+                child: FutureBuilder<PlayerProgressOverview>(
+                  future: _overview,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Không thể tải tiến độ: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final overview = snapshot.data!;
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        setState(() {
+                          _overview = ProgressRepository.instance
+                              .getPlayerProgressOverview();
+                        });
+                        await _overview;
+                      },
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 20),
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        child: Column(
+                          children: [
+                            _IdentityCard(overview: overview),
+                            const SizedBox(height: 14),
+                            const _LevelRewardsPanel(),
+                            const SizedBox(height: 14),
+                            _ActivityPanel(
+                              activities: overview.activities,
+                              month: DateTime.now(),
+                            ),
+                            const SizedBox(height: 14),
+                            _StatsPanel(profile: overview.profile),
+                            const SizedBox(height: 14),
+                            const _MascotBanner(),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -78,7 +126,7 @@ class _Panel extends StatelessWidget {
   const _Panel({required this.child});
 
   final Widget child;
-  static const EdgeInsets padding = EdgeInsets.all(14);
+  static const EdgeInsets padding = EdgeInsets.all(8);
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +135,11 @@ class _Panel extends StatelessWidget {
         color: ProfileScreen._goldBorder,
         borderRadius: BorderRadius.circular(22),
         boxShadow: const [
-          BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black38,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(4),
@@ -122,10 +174,8 @@ class _TopBar extends StatelessWidget {
               'assets/images/back_button/back1.png',
               width: 48,
               height: 48,
-              errorBuilder: (_, _, _) => const Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-              ),
+              errorBuilder: (_, _, _) =>
+                  const Icon(Icons.arrow_back_ios_new, color: Colors.white),
             ),
           ),
           const Expanded(
@@ -225,7 +275,9 @@ class _TitleBanner extends StatelessWidget {
 // ─── Identity card: avatar · name · slogan · trophy · EXP ─────────────────────
 
 class _IdentityCard extends StatelessWidget {
-  const _IdentityCard();
+  const _IdentityCard({required this.overview});
+
+  final PlayerProgressOverview overview;
 
   @override
   Widget build(BuildContext context) {
@@ -248,48 +300,49 @@ class _IdentityCard extends StatelessWidget {
                             'Học Giỏi Mỗi Ngày',
                             style: TextStyle(
                               color: ProfileScreen._blue,
-                              fontSize: 21,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               height: 1.1,
                             ),
                           ),
                         ),
-                        SizedBox(width: 6),
-                        _EditDot(size: 20),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
                         Icon(Icons.school, color: ProfileScreen._ink, size: 22),
-                        SizedBox(width: 8),
+                        SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             'Kiến thức hôm nay\nTương lai tỏa sáng!',
                             style: TextStyle(
                               color: ProfileScreen._ink,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              height: 1.25,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 1,
                             ),
                           ),
+                        ),
+                        Image.asset(
+                          '${ProfileScreen._assets}/icon10.png',
+                          width: 64,
+                          height: 64,
+                          errorBuilder: (_, _, _) => const SizedBox(width: 64),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              Image.asset(
-                '${ProfileScreen._assets}/icon10.png',
-                width: 64,
-                height: 64,
-                errorBuilder: (_, _, _) => const SizedBox(width: 64),
-              ),
             ],
           ),
           const SizedBox(height: 14),
-          const _ExpPanel(),
+          _ExpPanel(
+            profile: overview.profile,
+            requiredXp: overview.xpToNextLevel,
+          ),
         ],
       ),
     );
@@ -302,15 +355,15 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 96,
-      height: 96,
+      width: 100,
+      height: 100,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ProfileScreen._goldBorder, width: 3),
+              border: Border.all(color: ProfileScreen._goldBorder, width: 0),
               boxShadow: const [
                 BoxShadow(
                   color: Colors.black26,
@@ -323,8 +376,8 @@ class _Avatar extends StatelessWidget {
               borderRadius: BorderRadius.circular(13),
               child: Image.asset(
                 '${ProfileScreen._assets}/avatar_default.png',
-                width: 96,
-                height: 96,
+                width: 100,
+                height: 100,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
                   color: ProfileScreen._parchmentDark,
@@ -372,16 +425,17 @@ class _EditDot extends StatelessWidget {
 // ─── EXP sub-panel ────────────────────────────────────────────────────────────
 
 class _ExpPanel extends StatelessWidget {
-  const _ExpPanel();
+  const _ExpPanel({required this.profile, required this.requiredXp});
 
-  static const int _current = 2750;
-  static const int _required = 4000;
-  static const int _level = 18;
+  final UserProfile profile;
+  final int? requiredXp;
 
   @override
   Widget build(BuildContext context) {
-    final remaining = _required - _current;
-    final progress = _current / _required;
+    final isMaxLevel = requiredXp == null;
+    final required = requiredXp ?? 1;
+    final remaining = isMaxLevel ? 0 : required - profile.xp;
+    final progress = isMaxLevel ? 1.0 : profile.xp / required;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -392,7 +446,7 @@ class _ExpPanel extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _LevelBadge(level: _level),
+          _LevelBadge(level: profile.level),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -419,8 +473,8 @@ class _ExpPanel extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text(
-                          'Cấp tiếp theo',
+                        Text(
+                          isMaxLevel ? 'Đã đạt' : 'Cấp tiếp theo',
                           style: TextStyle(
                             color: ProfileScreen._ink,
                             fontSize: 11,
@@ -428,7 +482,7 @@ class _ExpPanel extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Lv. ${_level + 1}',
+                          isMaxLevel ? 'Tối đa' : 'Lv. ${profile.level + 1}',
                           style: const TextStyle(
                             color: ProfileScreen._ink,
                             fontSize: 18,
@@ -441,7 +495,9 @@ class _ExpPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${_fmt(_current)}/${_fmt(_required)} EXP',
+                  isMaxLevel
+                      ? '${_fmt(profile.totalXp)} EXP tổng'
+                      : '${_fmt(profile.xp)}/${_fmt(required)} EXP',
                   style: const TextStyle(
                     color: ProfileScreen._ink,
                     fontSize: 14,
@@ -452,7 +508,9 @@ class _ExpPanel extends StatelessWidget {
                 _SegmentedBar(progress: progress),
                 const SizedBox(height: 6),
                 Text(
-                  'Còn ${_fmt(remaining)} EXP để lên cấp',
+                  isMaxLevel
+                      ? 'Bạn đã đạt cấp tối đa'
+                      : 'Còn ${_fmt(remaining)} EXP để lên cấp',
                   style: const TextStyle(
                     color: ProfileScreen._ink,
                     fontSize: 13,
@@ -578,26 +636,10 @@ class _LevelRewardsPanel extends StatelessWidget {
 
   static const List<_Reward> _rewards = [
     _Reward('assets/images/coin.png', '10.000', _RewardState.claimed),
-    _Reward(
-      '${ProfileScreen._assets}/icon3.png',
-      'x1',
-      _RewardState.claimed,
-    ),
-    _Reward(
-      'assets/images/eggs/common_egg.png',
-      'x1',
-      _RewardState.claimed,
-    ),
-    _Reward(
-      'assets/images/stone_upgrade.png',
-      'x50',
-      _RewardState.current,
-    ),
-    _Reward(
-      '${ProfileScreen._assets}/icon4.png',
-      'x1',
-      _RewardState.locked,
-    ),
+    _Reward('${ProfileScreen._assets}/icon3.png', 'x1', _RewardState.claimed),
+    _Reward('assets/images/eggs/common_egg.png', 'x1', _RewardState.claimed),
+    _Reward('assets/images/stone_upgrade.png', 'x50', _RewardState.current),
+    _Reward('${ProfileScreen._assets}/icon4.png', 'x1', _RewardState.locked),
   ];
 
   @override
@@ -679,8 +721,10 @@ class _StateNode extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (state) {
       case _RewardState.claimed:
-        return _circle(const Color(0xFF3FB45A), const Icon(Icons.check,
-            color: Colors.white, size: 16));
+        return _circle(
+          const Color(0xFF3FB45A),
+          const Icon(Icons.check, color: Colors.white, size: 16),
+        );
       case _RewardState.current:
         return Container(
           width: 26,
@@ -690,26 +734,32 @@ class _StateNode extends StatelessWidget {
             color: const Color(0xFFFFF4D0),
             border: Border.all(color: const Color(0xFFE9B43C), width: 3),
             boxShadow: const [
-              BoxShadow(color: Color(0x88F2C94C), blurRadius: 8, spreadRadius: 1),
+              BoxShadow(
+                color: Color(0x88F2C94C),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
             ],
           ),
         );
       case _RewardState.locked:
-        return _circle(const Color(0xFF9AA0A6), const Icon(Icons.star,
-            color: Colors.white, size: 15));
+        return _circle(
+          const Color(0xFF9AA0A6),
+          const Icon(Icons.star, color: Colors.white, size: 15),
+        );
     }
   }
 
   Widget _circle(Color color, Widget child) => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        child: Center(child: child),
-      );
+    width: 24,
+    height: 24,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color,
+      border: Border.all(color: Colors.white, width: 2),
+    ),
+    child: Center(child: child),
+  );
 }
 
 class _RewardTile extends StatelessWidget {
@@ -737,7 +787,10 @@ class _RewardTile extends StatelessWidget {
         boxShadow: isCurrent
             ? const [
                 BoxShadow(
-                    color: Color(0x88F2C94C), blurRadius: 10, spreadRadius: 1),
+                  color: Color(0x88F2C94C),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
               ]
             : null,
       ),
@@ -803,29 +856,29 @@ class _StatusPill extends StatelessWidget {
 // ─── Learning activity: heatmap + stat list ───────────────────────────────────
 
 class _ActivityPanel extends StatelessWidget {
-  const _ActivityPanel();
+  const _ActivityPanel({required this.activities, required this.month});
 
-  // -1 = missed ("Bỏ lỡ"), 0..4 = intensity (Ít → Rất cao).
-  static const List<List<int>> _grid = [
-    [0, 1, 2, 2, 2, 3, -1],
-    [0, 1, 2, 2, 2, 1, 1],
-    [1, 1, 2, 3, 2, 2, 3],
-    [0, 1, 1, 2, 3, 1, 0],
-    [0, 0, 1, -1, -1, -1, -1],
-  ];
+  final List<DailyLearningActivity> activities;
+  final DateTime month;
 
   static const List<String> _dayLabels = [
-    'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'
+    'T2',
+    'T3',
+    'T4',
+    'T5',
+    'T6',
+    'T7',
+    'CN',
   ];
 
   static Color _cellColor(int level) => switch (level) {
-        -1 => const Color(0xFFF1E8CC),
-        0 => const Color(0xFFE6DFA2),
-        1 => const Color(0xFFAFD487),
-        2 => const Color(0xFF54B79A),
-        3 => const Color(0xFF2E94C4),
-        _ => const Color(0xFF3E63C8),
-      };
+    -1 => const Color(0xFFF1E8CC),
+    0 => const Color(0xFFE6DFA2),
+    1 => const Color(0xFFAFD487),
+    2 => const Color(0xFF54B79A),
+    3 => const Color(0xFF2E94C4),
+    _ => const Color(0xFF3E63C8),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -847,8 +900,10 @@ class _ActivityPanel extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
@@ -856,23 +911,26 @@ class _ActivityPanel extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
-                      'Tháng này',
-                      style: TextStyle(
+                      'Tháng ${month.month}/${month.year}',
+                      style: const TextStyle(
                         color: ProfileScreen._ink,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Icon(Icons.arrow_drop_down, color: ProfileScreen._ink),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: ProfileScreen._ink,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const _Heatmap(),
+          _Heatmap(activities: activities, month: month),
           const SizedBox(height: 12),
           const _Legend(),
         ],
@@ -882,11 +940,32 @@ class _ActivityPanel extends StatelessWidget {
 }
 
 class _Heatmap extends StatelessWidget {
-  const _Heatmap();
+  const _Heatmap({required this.activities, required this.month});
+
+  final List<DailyLearningActivity> activities;
+  final DateTime month;
+
+  static String _dateKey(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
+  int _activityLevel(DailyLearningActivity? activity) {
+    if (activity == null) return 0;
+    return activity.stagesPlayed.clamp(1, 4);
+  }
 
   @override
   Widget build(BuildContext context) {
     const labelW = 30.0;
+    final firstDay = DateTime(month.year, month.month);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+    final gridStart = firstDay.subtract(Duration(days: firstDay.weekday - 1));
+    final usedCells = firstDay.weekday - 1 + lastDay.day;
+    final weekCount = (usedCells / 7).ceil();
+    final activityByDate = {
+      for (final activity in activities) _dateKey(activity.date): activity,
+    };
+    final today = DateTime.now();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -910,7 +989,7 @@ class _Heatmap extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        for (var w = 0; w < _ActivityPanel._grid.length; w++)
+        for (var w = 0; w < weekCount; w++)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(
@@ -926,21 +1005,48 @@ class _Heatmap extends StatelessWidget {
                     ),
                   ),
                 ),
-                for (final level in _ActivityPanel._grid[w])
+                for (var day = 0; day < 7; day++)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(2),
                       child: AspectRatio(
                         aspectRatio: 1,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: _ActivityPanel._cellColor(level),
-                            borderRadius: BorderRadius.circular(5),
-                            border: Border.all(
-                              color: const Color(0xFFCBB984),
-                              width: 0.8,
-                            ),
-                          ),
+                        child: Builder(
+                          builder: (context) {
+                            final date = gridStart.add(
+                              Duration(days: w * 7 + day),
+                            );
+                            final outsideMonth = date.month != month.month;
+                            final isFuture = date.isAfter(
+                              DateTime(today.year, today.month, today.day),
+                            );
+                            final level = outsideMonth || isFuture
+                                ? -1
+                                : _activityLevel(
+                                    activityByDate[_dateKey(date)],
+                                  );
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: _ActivityPanel._cellColor(level),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(
+                                  color: const Color(0xFFCBB984),
+                                  width: 0.8,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: outsideMonth
+                                  ? null
+                                  : Text(
+                                      '${date.day}',
+                                      style: const TextStyle(
+                                        color: ProfileScreen._ink,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -956,38 +1062,51 @@ class _Heatmap extends StatelessWidget {
 /// Learning-stats summary in its own panel, below the activity heatmap.
 /// Four stats laid out as a 2×2 grid to fill the full panel width.
 class _StatsPanel extends StatelessWidget {
-  const _StatsPanel();
+  const _StatsPanel({required this.profile});
 
-  static const List<_StatRow> _stats = [
-    _StatRow(
-      asset: '${ProfileScreen._assets}/icon9.png',
-      label: 'Tổng số từ đã học',
-      value: '2.186',
-      valueColor: ProfileScreen._blue,
-    ),
-    _StatRow(
-      asset: '${ProfileScreen._assets}/icon6.png',
-      label: 'Số ngày học',
-      value: '27/30',
-      valueColor: Color(0xFF2E9E48),
-    ),
-    _StatRow(
-      asset: '${ProfileScreen._assets}/icon7.png',
-      label: 'Chuỗi học hiện tại',
-      value: '12 ngày',
-      valueColor: Color(0xFFE0492E),
-      badge: 'Tuyệt!',
-    ),
-    _StatRow(
-      asset: '${ProfileScreen._assets}/icon4.png',
-      label: 'Bài học đã hoàn thành',
-      value: '86 bài',
-      valueColor: ProfileScreen._blue,
-    ),
-  ];
+  final UserProfile profile;
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final lastDay = profile.lastLearningDate;
+    final currentStreak =
+        lastDay == null ||
+            DateTime(now.year, now.month, now.day)
+                    .difference(
+                      DateTime(lastDay.year, lastDay.month, lastDay.day),
+                    )
+                    .inDays >
+                1
+        ? 0
+        : profile.currentStreak;
+    final stats = [
+      _StatRow(
+        asset: '${ProfileScreen._assets}/icon9.png',
+        label: 'Tổng số từ đã học',
+        value: _fmt(profile.learnedWords),
+        valueColor: ProfileScreen._blue,
+      ),
+      _StatRow(
+        asset: '${ProfileScreen._assets}/icon6.png',
+        label: 'Số ngày học',
+        value: '${profile.learningDays} ngày',
+        valueColor: Color(0xFF2E9E48),
+      ),
+      _StatRow(
+        asset: '${ProfileScreen._assets}/icon7.png',
+        label: 'Chuỗi học hiện tại',
+        value: '$currentStreak ngày',
+        valueColor: Color(0xFFE0492E),
+        badge: currentStreak >= 7 ? 'Tuyệt!' : null,
+      ),
+      _StatRow(
+        asset: '${ProfileScreen._assets}/icon4.png',
+        label: 'Bài học đã hoàn thành',
+        value: '${profile.completedStages} màn',
+        valueColor: ProfileScreen._blue,
+      ),
+    ];
     return _Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1007,9 +1126,9 @@ class _StatsPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          for (var i = 0; i < _stats.length; i++) ...[
+          for (var i = 0; i < stats.length; i++) ...[
             if (i > 0) const SizedBox(height: 14),
-            _stats[i],
+            stats[i],
           ],
         ],
       ),
@@ -1107,12 +1226,11 @@ class _Legend extends StatelessWidget {
   const _Legend();
 
   static const List<(String, int)> _items = [
-    ('Ít', 0),
-    ('Thấp', 1),
-    ('Trung bình', 2),
-    ('Cao', 3),
-    ('Rất cao', 4),
-    ('Bỏ lỡ', -1),
+    ('Không học', 0),
+    ('1 màn', 1),
+    ('2 màn', 2),
+    ('3 màn', 3),
+    ('4+ màn', 4),
   ];
 
   @override
@@ -1131,7 +1249,10 @@ class _Legend extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: _ActivityPanel._cellColor(level),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xFFCBB984), width: 0.8),
+                  border: Border.all(
+                    color: const Color(0xFFCBB984),
+                    width: 0.8,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -1156,8 +1277,10 @@ class _MascotBanner extends StatelessWidget {
   const _MascotBanner();
 
   // Sparkles scattered behind the text: (left?, right?, top, size, opacity).
-  static const List<({double? left, double? right, double top, double size, double opacity})>
-      _sparkles = [
+  static const List<
+    ({double? left, double? right, double top, double size, double opacity})
+  >
+  _sparkles = [
     (left: 96, right: null, top: 8, size: 14, opacity: 0.9),
     (left: 150, right: null, top: 40, size: 9, opacity: 0.7),
     (left: 200, right: null, top: 6, size: 8, opacity: 0.6),
@@ -1179,7 +1302,11 @@ class _MascotBanner extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Padding(
@@ -1209,12 +1336,16 @@ class _MascotBanner extends StatelessWidget {
                     child: Icon(
                       Icons.auto_awesome,
                       size: s.size,
-                      color: const Color(0xFFFFE9A8).withValues(alpha: s.opacity),
+                      color: const Color(
+                        0xFFFFE9A8,
+                      ).withValues(alpha: s.opacity),
                     ),
                   ),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Image.asset(
@@ -1269,7 +1400,11 @@ class _BannerText extends StatelessWidget {
           fontWeight: FontWeight.w900,
           height: 1.35,
           shadows: [
-            Shadow(color: Color(0xFF06203F), blurRadius: 3, offset: Offset(0, 1)),
+            Shadow(
+              color: Color(0xFF06203F),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
           ],
         ),
       ),

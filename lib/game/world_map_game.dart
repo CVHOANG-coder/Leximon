@@ -59,6 +59,9 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
   double _maxScroll = 0;
   bool _boatMoving = false;
 
+  /// Vận tốc cuộn còn lại sau khi thả tay (px/giây) để tạo quán tính.
+  double _scrollVelocity = 0;
+
   /// Ổ khóa và mây che phủ theo từng đảo bị khóa — giữ tham chiếu để chạy
   /// hiệu ứng mở khóa (rung → vỡ → biến mất; mây tan sang 2 bên).
   final Map<int, SpriteComponent> _lockByIsland = {};
@@ -198,16 +201,55 @@ class WorldMapGame extends FlameGame with DragCallbacks, TapCallbacks {
   }
 
   @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    // Nắm tay vào màn hình → dừng quán tính đang trôi.
+    _scrollVelocity = 0;
+  }
+
+  @override
   void onDragUpdate(DragUpdateEvent event) {
     _scrollOffset =
         (_scrollOffset - event.localDelta.y).clamp(0, _maxScroll);
     _camera.viewfinder.position = Vector2(0, _scrollOffset);
   }
 
+  @override
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    // Thả tay → tiếp tục trôi theo vận tốc lúc buông (quán tính).
+    _scrollVelocity = -event.velocity.y;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    // Quán tính cuộn: trôi tiếp rồi chậm dần do ma sát (độc lập khung hình).
+    if (!_boatMoving && _scrollVelocity.abs() > 1) {
+      _scrollOffset =
+          (_scrollOffset + _scrollVelocity * dt).clamp(0, _maxScroll);
+      _camera.viewfinder.position = Vector2(0, _scrollOffset);
+      if (_scrollOffset <= 0 || _scrollOffset >= _maxScroll) {
+        _scrollVelocity = 0; // chạm biên thì dừng hẳn
+      } else {
+        _scrollVelocity *= math.pow(0.06, dt).toDouble();
+      }
+    }
+  }
+
   // ── Tap ───────────────────────────────────────────────────────────────────
 
   @override
   void onTapDown(TapDownEvent event) {
+    // Chạm xuống chỉ để DỪNG quán tính cuộn — KHÔNG điều hướng ở đây để tránh
+    // lỡ tay vào đảo khi đang cuộn. Việc vào đảo chỉ xảy ra ở onTapUp; nếu cử
+    // chỉ trở thành kéo (cuộn) thì Flame huỷ tap nên sẽ không điều hướng.
+    _scrollVelocity = 0;
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
     if (_boatMoving) return;
 
     // Convert screen → world coordinates

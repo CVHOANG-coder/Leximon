@@ -20,7 +20,6 @@ class StageCompleteDialog extends StatefulWidget {
     super.key,
     required this.score,
     required this.total,
-    required this.stars,
     required this.reward,
     required this.topicId,
     required this.stage,
@@ -29,7 +28,6 @@ class StageCompleteDialog extends StatefulWidget {
 
   final int score;
   final int total;
-  final int stars;
   final RewardPayload reward;
   final int topicId;
   final int stage;
@@ -50,7 +48,6 @@ class _StageCompleteDialogState extends State<StageCompleteDialog> {
       topicId: widget.topicId,
       stage: widget.stage,
       difficulty: widget.difficulty,
-      stageStars: widget.stars,
     );
     if (!mounted) return;
     Navigator.of(context).pop(false);
@@ -65,22 +62,24 @@ class _StageCompleteDialogState extends State<StageCompleteDialog> {
   List<_RewardTile> get _tiles {
     final r = widget.reward;
     return [
-      if (r.coin > 0)
-        _RewardTile('Vàng', r.coin, 'assets/images/coin.png'),
-      if (r.food > 0)
-        _RewardTile('Thức ăn', r.food, 'assets/images/food.png'),
+      if (r.coin > 0) _RewardTile('Vàng', r.coin, 'assets/images/coin.png'),
+      if (r.food > 0) _RewardTile('Thức ăn', r.food, 'assets/images/food.png'),
       if (r.chest > 0)
-        _RewardTile('Rương quà', r.chest,
-            'assets/images/task/chess_stage.png'),
+        _RewardTile('Rương quà', r.chest, 'assets/images/task/chess_stage.png'),
       if (r.commonEgg > 0)
-        _RewardTile('Trứng thường', r.commonEgg,
-            'assets/images/eggs/common_egg.png'),
+        _RewardTile(
+          'Trứng thường',
+          r.commonEgg,
+          'assets/images/eggs/common_egg.png',
+        ),
       if (r.rareEgg > 0)
-        _RewardTile('Trứng hiếm', r.rareEgg,
-            'assets/images/eggs/rare_egg.png'),
+        _RewardTile('Trứng hiếm', r.rareEgg, 'assets/images/eggs/rare_egg.png'),
       if (r.evolutionStone > 0)
-        _RewardTile('Đá tiến hóa', r.evolutionStone,
-            'assets/images/stone_upgrade.png'),
+        _RewardTile(
+          'Đá tiến hóa',
+          r.evolutionStone,
+          'assets/images/stone_upgrade.png',
+        ),
       // Mỗi creature 1 tile riêng — user thấy rõ đã nhận mảnh của thú nào.
       for (final entry in r.creatureShards.entries)
         if (entry.value > 0)
@@ -108,67 +107,63 @@ class _StageCompleteDialogState extends State<StageCompleteDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Stack(
         children: [
-          // Khung popup (đã có sao + nút X vẽ sẵn trong ảnh).
+          // Khung popup có nút X vẽ sẵn trong ảnh.
           Positioned.fill(
             child: Image.asset(
               'assets/images/popup_gift/frame_popup.png',
               fit: BoxFit.fill,
             ),
           ),
-            // Nội dung: chừa header (~12%) trên cho sao + border 2 bên + đáy.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 78, 22, 26),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _OutlinedTitle(text: 'Hoàn thành chặng!'),
-                  const SizedBox(height: 14),
-                  _DividerLabel('Kết quả màn chơi'),
-                  const SizedBox(height: 10),
-                  _ScoreChip(score: widget.score, total: widget.total),
-                  const SizedBox(height: 14),
-                  _StarRow(stars: widget.stars),
-                  const SizedBox(height: 16),
-                  _DividerLabel('Phần thưởng nhận được'),
-                  const SizedBox(height: 10),
-                  _buildRewardGrid(),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SoftButton(
-                          label: 'Xem lại',
-                          onTap: _claiming
-                              ? null
-                              : () => Navigator.of(context).pop(true),
-                        ),
+          // Nội dung: chừa header (~12%) trên cho sao + border 2 bên + đáy.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 78, 22, 26),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _OutlinedTitle(text: 'Hoàn thành chặng!'),
+                const SizedBox(height: 14),
+                _DividerLabel('Kết quả màn chơi'),
+                const SizedBox(height: 10),
+                _ScoreChip(score: widget.score, total: widget.total),
+                const SizedBox(height: 16),
+                _DividerLabel('Phần thưởng nhận được'),
+                const SizedBox(height: 10),
+                _buildRewardGrid(),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SoftButton(
+                        label: 'Xem lại',
+                        onTap: _claiming
+                            ? null
+                            : () => Navigator.of(context).pop(true),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _PrimaryButton(
-                          label: _claiming ? 'Đang lưu...' : 'Nhận thưởng',
-                          onTap: _claiming ? null : _claim,
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _PrimaryButton(
+                        label: _claiming ? 'Đang lưu...' : 'Nhận thưởng',
+                        onTap: _claiming ? null : _claim,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            // Vùng tap đè lên nút X vẽ sẵn trong ảnh khung (góc trên phải).
-            Positioned(
-              top: 6,
-              right: 6,
-              width: 44,
-              height: 44,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _claiming
-                    ? null
-                    : () => Navigator.of(context).pop(false),
-              ),
+          ),
+          // Vùng tap đè lên nút X vẽ sẵn trong ảnh khung (góc trên phải).
+          Positioned(
+            top: 6,
+            right: 6,
+            width: 44,
+            height: 44,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _claiming ? null : () => Navigator.of(context).pop(false),
             ),
-          ],
+          ),
+        ],
       ),
     );
   }
@@ -181,7 +176,10 @@ class _StageCompleteDialogState extends State<StageCompleteDialog> {
         child: Text(
           'Không có vật phẩm đặc biệt lần này.',
           style: TextStyle(
-              color: _kBrown, fontSize: 13, fontWeight: FontWeight.w700),
+            color: _kBrown,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       );
     }
@@ -268,13 +266,15 @@ class _OutlinedTitle extends StatelessWidget {
     );
     return Stack(
       children: [
-        Text(text,
-            style: style.copyWith(
-              foreground: Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 6
-                ..color = _kGoldDeep,
-            )),
+        Text(
+          text,
+          style: style.copyWith(
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 6
+              ..color = _kGoldDeep,
+          ),
+        ),
         Text(text, style: style.copyWith(color: _kGold)),
       ],
     );
@@ -348,37 +348,6 @@ class _ScoreChip extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StarRow extends StatelessWidget {
-  const _StarRow({required this.stars});
-  final int stars;
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < 3; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(
-              Icons.star_rounded,
-              size: 56,
-              color: i < stars ? _kGold : const Color(0xFFB59A6B),
-              shadows: i < stars
-                  ? const [
-                      Shadow(
-                        color: _kGoldDeep,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-          ),
-      ],
     );
   }
 }

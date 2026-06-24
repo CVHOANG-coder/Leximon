@@ -108,23 +108,30 @@
         },
         "performanceBonus": [
             {
-                "accuracyMin": 0,
-                "accuracyMax": 69,
-                "stageStar": 1,
-                "rewardMultiplier": 0.7,
+                "correctRateMin": 0.0,
+                "correctRateMaxExclusive": 0.6,
+                "passed": false,
+                "rewardMultiplier": 0.0,
                 "extraShardChance": 0.0
             },
             {
-                "accuracyMin": 70,
-                "accuracyMax": 89,
-                "stageStar": 2,
+                "correctRateMin": 0.6,
+                "correctRateMaxExclusive": 0.8,
+                "passed": true,
+                "rewardMultiplier": 0.85,
+                "extraShardChance": 0.0
+            },
+            {
+                "correctRateMin": 0.8,
+                "correctRateMaxExclusive": 1.0,
+                "passed": true,
                 "rewardMultiplier": 1.0,
                 "extraShardChance": 0.05
             },
             {
-                "accuracyMin": 90,
-                "accuracyMax": 100,
-                "stageStar": 3,
+                "correctRateMin": 1.0,
+                "correctRateMaxInclusive": 1.0,
+                "passed": true,
                 "rewardMultiplier": 1.25,
                 "extraShardChance": 0.12
             }

@@ -156,49 +156,43 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
           SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _RoundButton(
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: const Icon(Icons.arrow_back_rounded,
-                          color: _kInk, size: 26),
+                // Khung lấp đầy SafeArea, chỉ chừa khoảng nhỏ phía trên.
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                    child: Image.asset(
+                      'assets/images/bags/frame.png',
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                          child: Image.asset(
-                            'assets/images/bags/frame.png',
-                            fit: BoxFit.fill,
-                          ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: _kBlue))
+                      : Column(
+                          children: [
+                            _buildTitle(),
+                            const SizedBox(height: 14),
+                            _buildTabs(),
+                            const SizedBox(height: 10),
+                            _buildCounters(),
+                            const SizedBox(height: 12),
+                            Expanded(child: _buildBody()),
+                          ],
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                        child: _loading
-                            ? const Center(
-                                child: CircularProgressIndicator(color: _kBlue))
-                            : Column(
-                                children: [
-                                  _buildTitle(),
-                                  const SizedBox(height: 14),
-                                  _buildTabs(),
-                                  const SizedBox(height: 10),
-                                  _buildCounters(),
-                                  const SizedBox(height: 12),
-                                  Expanded(child: _buildBody()),
-                                ],
-                              ),
-                      ),
-                    ],
+                ),
+                // Nút back đặt đè lên góc trái của khung (không chiếm chiều cao).
+                Positioned(
+                  left: 12,
+                  top: 10,
+                  child: _RoundButton(
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: const Icon(Icons.arrow_back_rounded,
+                        color: _kInk, size: 26),
                   ),
                 ),
               ],

@@ -739,10 +739,6 @@ class _LessonScreenState extends State<LessonScreen> {
     final total = _questions.length;
     final passed = _score >= (total * 0.6).ceil();
     if (passed) _completedStages.add(_stageIdx);
-    final stars = _score >= total * 0.9
-        ? 3
-        : (_score >= total * 0.6 ? 2 : (_score >= total * 0.3 ? 1 : 0));
-
     final stage = _stages[_stageIdx];
     // Type lấy thẳng từ JSON: learn / review / final_review. final_review
     // kích hoạt mức thưởng boss / elite_boss theo độ dài topic
@@ -754,7 +750,6 @@ class _LessonScreenState extends State<LessonScreen> {
       stageType: stageType,
       score: _score,
       totalQuestions: total,
-      stars: stars,
       passed: passed,
       totalStages: _stages.length,
       learnedWords: stage.kind == _StageKind.learn
@@ -767,7 +762,8 @@ class _LessonScreenState extends State<LessonScreen> {
             stageType: stageType,
             stageIndex: _stageIdx,
             totalStages: _stages.length,
-            stars: stars,
+            correctAnswers: _score,
+            totalQuestions: total,
             islandId: widget.islandId,
           )
         : const RewardPayload();
@@ -785,7 +781,6 @@ class _LessonScreenState extends State<LessonScreen> {
           ? StageCompleteDialog(
               score: _score,
               total: total,
-              stars: stars,
               reward: payload,
               topicId: widget.topicId,
               stage: _stageIdx + 1,
@@ -795,7 +790,6 @@ class _LessonScreenState extends State<LessonScreen> {
               stageLabel: _stages[_stageIdx].label,
               score: _score,
               total: total,
-              stars: stars,
               passed: passed,
               reward: reward,
             ),
@@ -1813,10 +1807,7 @@ class _TeamTooltip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Mũi nhọn chỉ sang trái vào nút.
-          const CustomPaint(
-            size: Size(9, 18),
-            painter: _TooltipArrowPainter(),
-          ),
+          const CustomPaint(size: Size(9, 18), painter: _TooltipArrowPainter()),
           Container(
             constraints: const BoxConstraints(maxWidth: 200),
             padding: const EdgeInsets.fromLTRB(10, 10, 12, 12),
@@ -2143,7 +2134,7 @@ class _EnemyVisualState extends State<_EnemyVisual>
   Widget _idleLottie() => Lottie.asset(
     _idlePath,
     key: ValueKey(_idlePath),
-    fit: BoxFit.contain,
+    fit: BoxFit.fitHeight,
     alignment: Alignment.center,
     repeat: true,
     reverse: true,
@@ -2152,7 +2143,7 @@ class _EnemyVisualState extends State<_EnemyVisual>
         ? const Center(child: Text('👾', style: TextStyle(fontSize: 72)))
         : Lottie.asset(
             _fallbackIdle,
-            fit: BoxFit.contain,
+            fit: BoxFit.fitHeight,
             alignment: Alignment.center,
             repeat: true,
             reverse: true,
@@ -2163,13 +2154,30 @@ class _EnemyVisualState extends State<_EnemyVisual>
 
   @override
   Widget build(BuildContext context) {
+    // Lottie cao 4/5 chiều cao khung, canh giữa. Cho phép bề ngang tràn ra
+    // ngoài khung (OverflowBox maxWidth = ∞) để lottie tự nở theo tỉ lệ và
+    // được ClipOval của khung cắt ĐỀU hai bên, giữ tâm trùng tâm khung.
+    return Center(
+      child: FractionallySizedBox(
+        heightFactor: 0.8,
+        child: OverflowBox(
+          minWidth: 0,
+          maxWidth: double.infinity,
+          alignment: Alignment.center,
+          child: _content(),
+        ),
+      ),
+    );
+  }
+
+  Widget _content() {
     // Đang phản công → chiếu thẳng lottie attack đã nạp sẵn (không bọc hiệu
     // ứng nháy đỏ) để hiển thị tức thì.
     if (_attacking && _attackComposition != null) {
       return Lottie(
         composition: _attackComposition,
         controller: _attackCtrl,
-        fit: BoxFit.contain,
+        fit: BoxFit.fitHeight,
         alignment: Alignment.center,
       );
     }
@@ -3268,7 +3276,6 @@ class _ResultDialog extends StatelessWidget {
     required this.stageLabel,
     required this.score,
     required this.total,
-    required this.stars,
     required this.passed,
     this.reward,
   });
@@ -3276,7 +3283,6 @@ class _ResultDialog extends StatelessWidget {
   final String stageLabel;
   final int score;
   final int total;
-  final int stars;
   final bool passed;
   final StageReward? reward;
 
@@ -3303,20 +3309,6 @@ class _ResultDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < 3; i++)
-                  Icon(
-                    Icons.star_rounded,
-                    size: 40,
-                    color: i < stars
-                        ? const Color(0xFFF5A623)
-                        : const Color(0xFFD8CBA8),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
             Text(
               'Bạn trả lời đúng $score/$total câu',
               style: const TextStyle(

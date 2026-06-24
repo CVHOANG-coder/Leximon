@@ -12,6 +12,12 @@ class UserProfile extends Equatable {
     this.evolutionStone = 0,
     this.commonEgg = 0,
     this.rareEgg = 0,
+    this.currentStreak = 0,
+    this.longestStreak = 0,
+    this.learningDays = 0,
+    this.completedStages = 0,
+    this.learnedWords = 0,
+    this.lastLearningDate,
   });
 
   final int level;
@@ -27,36 +33,49 @@ class UserProfile extends Equatable {
   final int evolutionStone;
   final int commonEgg;
   final int rareEgg;
-
-  /// XP cần để lên cấp tiếp theo từ [level].
-  static int xpToLevelUp(int level) => 100 + (level - 1) * 50;
-
-  int get xpForNextLevel => xpToLevelUp(level);
-  double get levelProgress =>
-      (xp / xpForNextLevel).clamp(0.0, 1.0).toDouble();
+  final int currentStreak;
+  final int longestStreak;
+  final int learningDays;
+  final int completedStages;
+  final int learnedWords;
+  final DateTime? lastLearningDate;
 
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
-        level: map['level'] as int,
-        xp: map['xp'] as int,
-        totalXp: map['total_xp'] as int,
-        coins: map['coins'] as int,
-        chest: (map['chest'] as int?) ?? 0,
-        food: (map['food'] as int?) ?? 0,
-        evolutionStone: (map['evolution_stone'] as int?) ?? 0,
-        commonEgg: (map['common_egg'] as int?) ?? 0,
-        rareEgg: (map['rare_egg'] as int?) ?? 0,
-      );
+    level: map['level'] as int,
+    xp: map['xp'] as int,
+    totalXp: map['total_xp'] as int,
+    coins: map['coins'] as int,
+    chest: (map['chest'] as int?) ?? 0,
+    food: (map['food'] as int?) ?? 0,
+    evolutionStone: (map['evolution_stone'] as int?) ?? 0,
+    commonEgg: (map['common_egg'] as int?) ?? 0,
+    rareEgg: (map['rare_egg'] as int?) ?? 0,
+    currentStreak: (map['current_streak'] as int?) ?? 0,
+    longestStreak: (map['longest_streak'] as int?) ?? 0,
+    learningDays: (map['learning_days'] as int?) ?? 0,
+    completedStages: (map['completed_stages'] as int?) ?? 0,
+    learnedWords: (map['learned_words'] as int?) ?? 0,
+    lastLearningDate: map['last_learning_date'] == null
+        ? null
+        : DateTime.parse(map['last_learning_date'] as String),
+  );
 
   @override
   List<Object?> get props => [
-        level,
-        xp,
-        totalXp,
-        coins,
-        chest,
-        food,
-        evolutionStone,
-        commonEgg,
-        rareEgg,
-      ];
+    level,
+    xp,
+    totalXp,
+    coins,
+    chest,
+    food,
+    evolutionStone,
+    commonEgg,
+    rareEgg,
+    currentStreak,
+    longestStreak,
+    learningDays,
+    completedStages,
+    learnedWords,
+    lastLearningDate,
+  ];
 }
