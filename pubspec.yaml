@@ -83,6 +83,7 @@ flutter:
         - assets/images/back_button/
         - assets/images/pet_detail_screen/
         - assets/images/pet_detail_screen/system_pet/
+        - assets/images/profileInfo/
         - assets/svgs/
         - assets/lotties/
         - assets/lotties/egg/
