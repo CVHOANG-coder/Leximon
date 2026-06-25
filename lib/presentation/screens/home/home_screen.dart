@@ -2,9 +2,9 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../../data/models/user_profile.dart';
 import '../../../data/repositories/progress_repository.dart';
+import '../../../data/services/level_progression_service.dart';
 import '../../../game/components/island_data.dart';
 import '../../../game/world_map_game.dart';
 
@@ -18,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final WorldMapGame _game;
   UserProfile? _profile;
+  int? _xpToNextLevel;
 
   @override
   void initState() {
@@ -59,8 +60,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadProfile() async {
     final profile = await ProgressRepository.instance.getProfile();
+    final progression = await LevelProgressionService.instance.load();
     if (!mounted) return;
-    setState(() => _profile = profile);
+    setState(() {
+      _profile = profile;
+      _xpToNextLevel = progression.xpToNextLevel(profile.level);
+    });
   }
 
   Future<void> _pushAndRefresh(String location) async {
@@ -77,10 +82,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           GameWidget(game: _game),
 
           // ── Top HUD bar ──────────────────────────────────────────────────
-          SafeArea(
+          Positioned(
+            left: 0,
+            right: 0,
+            top: MediaQuery.of(context).padding.top,
             child: _TopHud(
-              coins: _profile?.coins ?? 0,
-              food: _profile?.food ?? 0,
+              profile: _profile,
+              xpToNextLevel: _xpToNextLevel,
               onProfileTap: () => _pushAndRefresh('/profile'),
             ),
           ),
@@ -106,12 +114,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 class _TopHud extends StatelessWidget {
   const _TopHud({
     required this.onProfileTap,
-    required this.coins,
-    required this.food,
+    required this.profile,
+    required this.xpToNextLevel,
   });
   final VoidCallback onProfileTap;
-  final int coins;
-  final int food;
+  final UserProfile? profile;
+  final int? xpToNextLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -119,70 +127,28 @@ class _TopHud extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          // Player avatar + level
-          GestureDetector(
-            onTap: onProfileTap,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white38),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.accent,
-                    child: const Text(
-                      'A',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  onTap: onProfileTap,
+                  child: _PlayerProgressHud(
+                    profile: profile,
+                    xpToNextLevel: xpToNextLevel,
                   ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'PLAYER: ALEX',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          const Text(
-                            'LVL 5',
-                            style: TextStyle(
-                              color: AppColors.accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          _LevelBar(progress: 0.6),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-
-          const Spacer(),
+          const SizedBox(width: 8),
 
           // Coins
           _CurrencyChip(
             asset: 'assets/images/coin.png',
-            value: '$coins',
+            value: '${profile?.coins ?? 0}',
             // Ảnh coin có nhiều khoảng trong suốt nên cần lớn hơn cho cân.
             iconSize: 34,
           ),
@@ -190,7 +156,7 @@ class _TopHud extends StatelessWidget {
           // Food
           _CurrencyChip(
             asset: 'assets/images/food.png',
-            value: '$food',
+            value: '${profile?.food ?? 0}',
             iconSize: 36,
           ),
         ],
@@ -199,28 +165,209 @@ class _TopHud extends StatelessWidget {
   }
 }
 
-class _LevelBar extends StatelessWidget {
-  const _LevelBar({required this.progress});
+class _PlayerProgressHud extends StatelessWidget {
+  const _PlayerProgressHud({
+    required this.profile,
+    required this.xpToNextLevel,
+  });
+
+  final UserProfile? profile;
+  final int? xpToNextLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = profile?.level ?? 1;
+    final currentXp = profile?.xp ?? 0;
+    final requiredXp = xpToNextLevel;
+    final isMaxLevel = profile != null && requiredXp == null;
+    final progress = isMaxLevel
+        ? 1.0
+        : requiredXp == null || requiredXp <= 0
+        ? 0.0
+        : (currentXp / requiredXp).clamp(0.0, 1.0);
+    final xpText = isMaxLevel
+        ? '$currentXp / MAX'
+        : '${requiredXp == null ? 0 : currentXp} / ${requiredXp ?? 0}';
+
+    return SizedBox(
+      width: 232,
+      height: 66,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 4,
+            top: 0,
+            child: Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF143151),
+                border: Border.all(color: const Color(0xFF9B7A27), width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(3),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/profileInfo/avatar_default.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      const Icon(Icons.person, color: Colors.white, size: 34),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 58,
+            top: 2,
+            child: Container(
+              height: 19,
+              constraints: const BoxConstraints(minWidth: 54),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFF061629).withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black38,
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Lexi',
+                maxLines: 1,
+                style: TextStyle(
+                  color: Color(0xFFC5DAF2),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 66,
+            top: 28,
+            child: _XpBar(progress: progress, text: xpText),
+          ),
+          Positioned(left: 48, top: 15, child: _HomeLevelBadge(level: level)),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeLevelBadge extends StatelessWidget {
+  const _HomeLevelBadge({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(
+            'assets/images/profileInfo/star_level.png',
+            width: 46,
+            height: 46,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+          Text(
+            '$level',
+            style: const TextStyle(
+              color: Color(0xFFFFD24A),
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              height: 1,
+              shadows: [
+                Shadow(
+                  color: Color(0xFF1E1304),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _XpBar extends StatelessWidget {
+  const _XpBar({required this.progress, required this.text});
+
   final double progress;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 6,
+      width: 164,
+      height: 24,
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.white24,
-        borderRadius: BorderRadius.circular(4),
+        color: const Color(0xFF04101C).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.45)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
+        ],
       ),
-      child: FractionallySizedBox(
-        widthFactor: progress,
-        alignment: Alignment.centerLeft,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(4),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: progress,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF9E8618), Color(0xFF5F520A)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+          Text(
+            text,
+            maxLines: 1,
+            style: const TextStyle(
+              color: Color(0xFFD7D3C8),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              height: 1,
+              shadows: [
+                Shadow(
+                  color: Colors.black,
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

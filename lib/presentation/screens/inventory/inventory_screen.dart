@@ -27,7 +27,13 @@ class _InvItem {
 }
 
 class _PieceItem {
-  const _PieceItem(this.name, this.rarity, this.owned, this.required, this.asset);
+  const _PieceItem(
+    this.name,
+    this.rarity,
+    this.owned,
+    this.required,
+    this.asset,
+  );
   final String name;
   final String rarity; // common/rare/epic/legendary
   final int owned;
@@ -50,14 +56,30 @@ class _RarityStyle {
 }
 
 const _rarity = <String, _RarityStyle>{
-  'common':
-      _RarityStyle('Thường', Color(0xFFEDEDED), Color(0xFF555555), Color(0xFF9DD06A)),
-  'rare':
-      _RarityStyle('Hiếm', Color(0xFFDFEEFF), Color(0xFF2563EB), Color(0xFF3F90F5)),
-  'epic':
-      _RarityStyle('Sử thi', Color(0xFFEBDDFB), Color(0xFF7C3AED), Color(0xFF9B66E6)),
+  'common': _RarityStyle(
+    'Thường',
+    Color(0xFFEDEDED),
+    Color(0xFF555555),
+    Color(0xFF9DD06A),
+  ),
+  'rare': _RarityStyle(
+    'Hiếm',
+    Color(0xFFDFEEFF),
+    Color(0xFF2563EB),
+    Color(0xFF3F90F5),
+  ),
+  'epic': _RarityStyle(
+    'Sử thi',
+    Color(0xFFEBDDFB),
+    Color(0xFF7C3AED),
+    Color(0xFF9B66E6),
+  ),
   'legendary': _RarityStyle(
-      'Huyền thoại', Color(0xFFFFE9A8), Color(0xFFB07A0F), Color(0xFFEAB13A)),
+    'Huyền thoại',
+    Color(0xFFFFE9A8),
+    Color(0xFFB07A0F),
+    Color(0xFFEAB13A),
+  ),
 };
 
 /// Màn "Túi đồ" — kho vật phẩm + mảnh ghép thú.
@@ -88,15 +110,32 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final byId = {for (final c in creatures) c.id: c};
 
     final items = <_InvItem>[
-      _InvItem('Rương quà', 'Mở để nhận phần thưởng\nngẫu nhiên.',
-          profile.chest, 'assets/images/task/chess_stage.png'),
-      _InvItem('Đá tiến hóa', 'Dùng để tiến hóa thú\nlên cấp cao hơn.',
-          profile.evolutionStone, 'assets/images/stone_upgrade.png'),
-      _InvItem('Trứng thường', 'Dùng để ấp thú\nngẫu nhiên.',
-          profile.commonEgg, 'assets/images/eggs/common_egg.png',
-          eggType: 'common'),
-      _InvItem('Trứng hiếm', 'Có cơ hội nở ra\nthú quý hiếm hơn.',
-          profile.rareEgg, 'assets/images/eggs/rare_egg.png', eggType: 'rare'),
+      _InvItem(
+        'Rương quà',
+        'Mở để nhận phần thưởng\nngẫu nhiên.',
+        profile.chest,
+        'assets/images/task/chess_stage.png',
+      ),
+      _InvItem(
+        'Đá tiến hóa',
+        'Dùng để tiến hóa thú\nlên cấp cao hơn.',
+        profile.evolutionStone,
+        'assets/images/stone_upgrade.png',
+      ),
+      _InvItem(
+        'Trứng thường',
+        'Dùng để ấp thú\nngẫu nhiên.',
+        profile.commonEgg,
+        'assets/images/eggs/common_egg.png',
+        eggType: 'common',
+      ),
+      _InvItem(
+        'Trứng hiếm',
+        'Có cơ hội nở ra\nthú quý hiếm hơn.',
+        profile.rareEgg,
+        'assets/images/eggs/rare_egg.png',
+        eggType: 'rare',
+      ),
     ];
 
     final pieces = <_PieceItem>[
@@ -172,7 +211,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
                   child: _loading
                       ? const Center(
-                          child: CircularProgressIndicator(color: _kBlue))
+                          child: CircularProgressIndicator(color: _kBlue),
+                        )
                       : Column(
                           children: [
                             _buildTitle(),
@@ -191,8 +231,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   top: 10,
                   child: _RoundButton(
                     onTap: () => Navigator.of(context).maybePop(),
-                    child: const Icon(Icons.arrow_back_rounded,
-                        color: _kInk, size: 26),
+                    child: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: _kInk,
+                      size: 26,
+                    ),
                   ),
                 ),
               ],
@@ -205,7 +248,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   Widget _buildTitle() {
     return const Padding(
-      padding: EdgeInsets.only(top: 22, bottom: 4),
+      padding: EdgeInsets.only(top: 40, bottom: 4),
       child: Text(
         'Túi đồ',
         style: TextStyle(
@@ -248,7 +291,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         color: Color(0x552F6BFF),
                         blurRadius: 8,
                         offset: Offset(0, 3),
-                      )
+                      ),
                     ]
                   : null,
             ),
@@ -347,10 +390,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
       return const _EmptyCard(
         asset: 'assets/images/bags/empty_item.png',
         title: 'Chưa có vật phẩm nào',
-        subtitle: 'Hoàn thành màn chơi, mở rương\nhoặc ấp trứng để nhận vật phẩm.',
+        subtitle:
+            'Hoàn thành màn chơi, mở rương\nhoặc ấp trứng để nhận vật phẩm.',
       );
     }
-    final visible = [for (final i in _items) if (i.count > 0) i];
+    final visible = [
+      for (final i in _items)
+        if (i.count > 0) i,
+    ];
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -445,7 +492,11 @@ class _RoundButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _kCreamBorder, width: 2),
           boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
           ],
         ),
         child: child,
@@ -453,7 +504,6 @@ class _RoundButton extends StatelessWidget {
     );
   }
 }
-
 
 class _CounterCell extends StatelessWidget {
   const _CounterCell({
@@ -486,24 +536,26 @@ class _CounterCell extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text.rich(
-                TextSpan(children: [
-                  TextSpan(
-                    text: '$current',
-                    style: const TextStyle(
-                      color: _kBlue,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$current',
+                      style: const TextStyle(
+                        color: _kBlue,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: '/$total',
-                    style: const TextStyle(
-                      color: _kMuted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                    TextSpan(
+                      text: '/$total',
+                      style: const TextStyle(
+                        color: _kMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ],
           )
@@ -512,24 +564,26 @@ class _CounterCell extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text.rich(
-                TextSpan(children: [
-                  TextSpan(
-                    text: '$current',
-                    style: const TextStyle(
-                      color: _kBlue,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$current',
+                      style: const TextStyle(
+                        color: _kBlue,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: ' $label',
-                    style: const TextStyle(
-                      color: _kBrown,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                    TextSpan(
+                      text: ' $label',
+                      style: const TextStyle(
+                        color: _kBrown,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
               Text(
                 '$current/$total',
@@ -573,7 +627,10 @@ class _ItemCard extends StatelessWidget {
           border: Border.all(color: _kCreamBorder, width: 2),
           boxShadow: const [
             BoxShadow(
-                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
           ],
         ),
         child: Column(
@@ -583,9 +640,7 @@ class _ItemCard extends StatelessWidget {
               child: _CountBadge(count: item.count),
             ),
             const SizedBox(height: 2),
-            Expanded(
-              child: Image.asset(item.asset, fit: BoxFit.contain),
-            ),
+            Expanded(child: Image.asset(item.asset, fit: BoxFit.contain)),
             const SizedBox(height: 6),
             Text(
               item.name,
@@ -665,9 +720,7 @@ class _PieceCard extends StatelessWidget {
               child: _CountBadge(count: piece.owned),
             ),
             const SizedBox(height: 2),
-            Expanded(
-              child: Image.asset(piece.asset, fit: BoxFit.contain),
-            ),
+            Expanded(child: Image.asset(piece.asset, fit: BoxFit.contain)),
             const SizedBox(height: 4),
             Text(
               piece.name,

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,6 +18,10 @@ const _kGold = Color(0xFFF5B91E);
 const _kMuted = Color(0xFF9C8B66);
 
 const _bgAsset = 'assets/images/your_team/background.png';
+const _titleHeaderAsset = 'assets/images/your_team/title_header.png';
+const _buttonAsset = 'assets/images/your_team/button.png';
+const _frameAllAsset = 'assets/images/your_team/frame_all.png';
+const _labelFrameAsset = 'assets/images/your_team/label_frame.png';
 const _emptyFrameAsset = 'assets/images/your_team/frame_empty_pet.png';
 const _powerIconAsset = 'assets/images/your_team/icon_power.png';
 const _noPetAsset = 'assets/images/your_team/no_pet.png';
@@ -229,45 +231,54 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   Widget _buildPanel() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEE5BB),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _kBorder, width: 3),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 14),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
-            child: _Section(
-              title: 'Đội hình ra trận',
-              framed: false,
-              child: _buildLineup(),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _frameAllAsset,
+            fit: BoxFit.fill,
+            errorBuilder: (_, _, _) => DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE5BB),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: _kBorder, width: 3),
+              ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-            child: Column(
-              children: [
-                _buildPowerBar(),
-                const SizedBox(height: 10),
-                _Section(
-                  title: 'Thú sở hữu',
-                  child: _owned.isEmpty
-                      ? _buildEmptyOwned()
-                      : _buildOwnedGrid(),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
+                child: _Section(
+                  title: 'Đội hình ra trận',
+                  framed: false,
+                  child: _buildLineup(),
                 ),
-                const SizedBox(height: 12),
-                _buildFooterHint(),
-              ],
-            ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                child: Column(
+                  children: [
+                    _buildPowerBar(),
+                    const SizedBox(height: 14),
+                    _Section(
+                      title: 'Thú sở hữu',
+                      child: _owned.isEmpty
+                          ? _buildEmptyOwned()
+                          : _buildOwnedGrid(),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFooterHint(),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -528,37 +539,43 @@ class _Section extends StatelessWidget {
           child: Column(children: [SizedBox(height: 8), child]),
         ),
         Positioned(
-          top: 0,
+          top: -7,
           left: 0,
           right: 0,
           child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7D39B),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: _kBorder, width: 2),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+            child: SizedBox(
+              width: 220,
+              height: 44,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  const Text(
-                    '◆',
-                    style: TextStyle(color: _kGold, fontSize: 11),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _kInk,
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w900,
+                  Positioned.fill(
+                    child: Image.asset(
+                      _labelFrameAsset,
+                      fit: BoxFit.fill,
+                      errorBuilder: (_, _, _) => DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7D39B),
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(color: _kBorder, width: 2),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '◆',
-                    style: TextStyle(color: _kGold, fontSize: 11),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 52),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: _kInk,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1023,31 +1040,51 @@ class _GoldButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: enabled ? _kGold : const Color(0xFFC9C2B0),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: enabled ? const Color(0xFFD79A12) : const Color(0xFFB3AC9B),
-            width: 2,
-          ),
-          boxShadow: enabled
-              ? const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.55,
+        child: SizedBox(
+          width: 78,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  _buttonAsset,
+                  fit: BoxFit.fill,
+                  errorBuilder: (_, _, _) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: enabled ? _kGold : const Color(0xFFC9C2B0),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: enabled ? _kInk : const Color(0xFF8A8474),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: enabled ? _kInk : const Color(0xFF8A8474),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      shadows: enabled
+                          ? const [
+                              Shadow(
+                                color: Colors.white70,
+                                blurRadius: 1.5,
+                                offset: Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1055,172 +1092,56 @@ class _GoldButton extends StatelessWidget {
   }
 }
 
-/// Banner tiêu đề cầu kỳ: khuôn lục giác dẹt (trên/dưới phẳng, 2 đầu nhọn)
-/// vẽ vector, nền xanh gradient, viền vàng kép, 4 vai gắn hạt kim cương vàng.
 class _TitleBanner extends StatelessWidget {
   const _TitleBanner();
 
-  static const _gold = Color(0xFFE9B949);
-  static const _goldLight = Color(0xFFF6D87A);
-  static const _goldDark = Color(0xFFC98A1E);
-
-  /// Độ "nhô" của 2 đầu nhọn (khoảng cách từ mũi nhọn tới mép phẳng trên/dưới).
-  static const double _point = 18;
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        CustomPaint(
-          painter: const _PointedBannerPainter(point: _point),
-          child: const Padding(
-            padding: EdgeInsets.fromLTRB(_point + 16, 12, _point + 16, 12),
+    return SizedBox(
+      width: 246,
+      height: 64,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              _titleHeaderAsset,
+              fit: BoxFit.fill,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 34),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.pets_rounded, color: Color(0xFFFAD073), size: 28),
-                SizedBox(width: 2),
-                Text(
-                  'Đội hình thú',
-                  style: TextStyle(
-                    color: Color(0xFFFCE9CA),
-                    fontSize: 20,
-                    fontWeight: FontWeight(900),
-                    shadows: [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 3,
-                        offset: Offset(0, 1),
+                Icon(Icons.pets_rounded, color: Color(0xFFFAD073), size: 27),
+                SizedBox(width: 3),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Đội hình thú',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: Color(0xFFFCE9CA),
+                        fontSize: 20,
+                        fontWeight: FontWeight(900),
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 3,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        // 4 hạt kim cương ở vai khuôn (nơi mép phẳng gặp đầu nhọn).
-        const Positioned(top: -3, left: _point - 6, child: _BannerDiamond()),
-        const Positioned(top: -3, right: _point - 6, child: _BannerDiamond()),
-        const Positioned(bottom: -3, left: _point - 6, child: _BannerDiamond()),
-        const Positioned(
-          bottom: -3,
-          right: _point - 6,
-          child: _BannerDiamond(),
-        ),
-      ],
-    );
-  }
-}
-
-/// Vẽ khuôn lục giác dẹt + viền vàng kép cho [_TitleBanner]. Mọi đỉnh được bo
-/// cong (bezier) nên 2 đầu nhọn và các vai đều mềm mại.
-class _PointedBannerPainter extends CustomPainter {
-  const _PointedBannerPainter({required this.point});
-
-  final double point;
-
-  /// Bán kính bo: ở vai (mép phẳng) và ở 2 đầu nhọn (bo nhiều hơn cho mềm).
-  static const double _shoulderR = 11;
-  static const double _tipR = 17;
-
-  /// Dựng đường viền lục giác đã bo cong tại từng đỉnh.
-  static Path _framePath(Rect r, double pt, double sr, double tr) {
-    final midY = r.center.dy;
-    final pts = <Offset>[
-      Offset(r.left + pt, r.top), // vai trên-trái
-      Offset(r.right - pt, r.top), // vai trên-phải
-      Offset(r.right, midY), // đầu nhọn phải
-      Offset(r.right - pt, r.bottom), // vai dưới-phải
-      Offset(r.left + pt, r.bottom), // vai dưới-trái
-      Offset(r.left, midY), // đầu nhọn trái
-    ];
-    final radii = <double>[sr, sr, tr, sr, sr, tr];
-
-    final path = Path();
-    final n = pts.length;
-    for (var i = 0; i < n; i++) {
-      final cur = pts[i];
-      final prev = pts[(i - 1 + n) % n];
-      final next = pts[(i + 1) % n];
-      final toPrev = prev - cur;
-      final toNext = next - cur;
-      final rA = math.min(radii[i], toPrev.distance / 2);
-      final rB = math.min(radii[i], toNext.distance / 2);
-      final a = cur + toPrev / toPrev.distance * rA;
-      final b = cur + toNext / toNext.distance * rB;
-      if (i == 0) {
-        path.moveTo(a.dx, a.dy);
-      } else {
-        path.lineTo(a.dx, a.dy);
-      }
-      path.quadraticBezierTo(cur.dx, cur.dy, b.dx, b.dy);
-    }
-    return path..close();
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final outer = _framePath(rect.deflate(2.5), point, _shoulderR, _tipR);
-
-    // Bóng đổ nhẹ dưới khuôn.
-    canvas.drawShadow(outer, Colors.black54, 4, false);
-
-    // Nền xanh gradient.
-    canvas.drawPath(
-      outer,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF3E74E8), Color(0xFF1C40A6)],
-        ).createShader(rect),
-    );
-
-    // Viền vàng ngoài (dày).
-    canvas.drawPath(
-      outer,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeJoin = StrokeJoin.round
-        ..color = _TitleBanner._gold,
-    );
-
-    // Đường vàng sáng bên trong (viền kép).
-    canvas.drawPath(
-      _framePath(rect.deflate(8), point - 3.5, _shoulderR - 3, _tipR - 4),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeJoin = StrokeJoin.round
-        ..color = _TitleBanner._goldLight,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PointedBannerPainter oldDelegate) =>
-      oldDelegate.point != point;
-}
-
-class _BannerDiamond extends StatelessWidget {
-  const _BannerDiamond();
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: math.pi / 4,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          color: _TitleBanner._goldLight,
-          border: Border.all(color: _TitleBanner._goldDark, width: 1.5),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
-        ),
+        ],
       ),
     );
   }

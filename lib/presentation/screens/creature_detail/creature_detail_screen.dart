@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -179,7 +178,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       child: Row(
         children: [
           GestureDetector(
@@ -207,15 +206,6 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                 icon: Icons.more_vert_rounded,
                 iconColor: _kInk,
                 onTap: () => _comingSoon('Thông tin'),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Thông tin',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ],
           ),
@@ -736,51 +726,64 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Row(
-                      children: [
-                        const Flexible(
-                          child: Text(
-                            'Cần đá tiến hóa: ',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: _kInk,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAE1B5),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFFE0BF8A),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Flexible(
+                            child: Text(
+                              'Cần đá tiến hóa: ',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _kInk,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        ),
-                        Image.asset(
-                          'assets/images/stone_upgrade.png',
-                          width: 28,
-                          height: 28,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) =>
-                              const Text('💎', style: TextStyle(fontSize: 18)),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${s.stones}/${s.stonesMax}',
-                          style: const TextStyle(
-                            color: _kRed,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _comingSoon('Tìm đá tiến hóa'),
-                          child: Image.asset(
-                            'assets/images/pet_detail_screen/add_stone.png',
-                            width: 30,
-                            height: 30,
+                          Image.asset(
+                            'assets/images/stone_upgrade.png',
+                            width: 28,
+                            height: 28,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => _SmallSquare(
-                              icon: Icons.add_rounded,
-                              onTap: () => _comingSoon('Tìm đá tiến hóa'),
+                            errorBuilder: (_, _, _) => const Text(
+                              '💎',
+                              style: TextStyle(fontSize: 18),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '${s.stones}/${s.stonesMax}',
+                            style: const TextStyle(
+                              color: _kRed,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => _comingSoon('Tìm đá tiến hóa'),
+                            child: Image.asset(
+                              'assets/images/pet_detail_screen/add_stone.png',
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, _, _) => _SmallSquare(
+                                icon: Icons.add_rounded,
+                                onTap: () => _comingSoon('Tìm đá tiến hóa'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -799,9 +802,9 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
           top: 4,
           left: 4,
           child: SizedBox(
-            width: 150,
+            width: 110,
             child: AspectRatio(
-              aspectRatio: 1987 / 555,
+              aspectRatio: 2000 / 555,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -843,7 +846,17 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
     final c = _creature!;
     // Kỹ năng đặc biệt = kỹ năng của dạng trưởng thành (mạnh nhất).
     final stage = c.stages['adult'] ?? c.stages['teen'];
-    return _Panel(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage(
+            'assets/images/pet_detail_screen/frame_section_skill_book.png',
+          ),
+          fit: BoxFit.fill,
+        ),
+      ),
       child: Row(
         children: [
           Image.asset(
@@ -863,8 +876,8 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                   'Kỹ năng đặc biệt: ${stage?.name ?? c.name}',
                   style: const TextStyle(
                     color: _kBlue,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -872,7 +885,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
                   stage?.skill ?? '',
                   style: const TextStyle(
                     color: _kInk,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -905,28 +918,6 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
 }
 
 // ─── Reusable widgets ─────────────────────────────────────────────────────────
-
-class _Panel extends StatelessWidget {
-  const _Panel({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _kCream,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kBorder, width: 2.5),
-        boxShadow: const [
-          BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3)),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
 
 class _Bar extends StatelessWidget {
   const _Bar({
@@ -1355,7 +1346,7 @@ class _EvolutionStage extends StatelessWidget {
           style: const TextStyle(
             color: _kInk,
             fontSize: 12.5,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w800,
             shadows: [
               Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
               Shadow(color: Color(0xFFFFFBEC), blurRadius: 3),
@@ -1367,189 +1358,62 @@ class _EvolutionStage extends StatelessWidget {
   }
 }
 
-/// Banner tiêu đề cầu kỳ (giống màn đội hình): khuôn lục giác dẹt vẽ vector,
-/// nền xanh gradient, viền vàng kép, 4 vai gắn hạt kim cương vàng.
+/// Banner tiêu đề dùng khung ảnh trong assets.
 class _TitleBanner extends StatelessWidget {
   const _TitleBanner({required this.title});
 
   final String title;
 
-  static const _gold = Color(0xFFE9B949);
-  static const _goldLight = Color(0xFFF6D87A);
-  static const _goldDark = Color(0xFFC98A1E);
-
-  /// Độ "nhô" của 2 đầu nhọn (khoảng cách từ mũi nhọn tới mép phẳng trên/dưới).
-  static const double _point = 18;
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        CustomPaint(
-          painter: const _PointedBannerPainter(point: _point),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              _point + 16,
-              12,
-              _point + 16,
-              12,
+    return Padding(
+      padding: EdgeInsets.only(bottom: 6),
+      child: SizedBox(
+        height: 52,
+        width: double.infinity,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(34, 8, 34, 10),
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                'assets/images/pet_detail_screen/frame_title_header.png',
+              ),
+              fit: BoxFit.fill,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.pets_rounded,
-                  color: Color(0xFFFAD073),
-                  size: 28,
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: Color(0xFFFCE9CA),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black54,
-                            blurRadius: 3,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.pets_rounded,
+                color: Color(0xFFFAD073),
+                size: 24,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Color(0xFFFCE9CA),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        // 4 hạt kim cương ở vai khuôn (nơi mép phẳng gặp đầu nhọn).
-        const Positioned(top: -3, left: _point - 6, child: _BannerDiamond()),
-        const Positioned(top: -3, right: _point - 6, child: _BannerDiamond()),
-        const Positioned(bottom: -3, left: _point - 6, child: _BannerDiamond()),
-        const Positioned(
-          bottom: -3,
-          right: _point - 6,
-          child: _BannerDiamond(),
-        ),
-      ],
-    );
-  }
-}
-
-/// Vẽ khuôn lục giác dẹt + viền vàng kép cho [_TitleBanner]. Mọi đỉnh được bo
-/// cong (bezier) nên 2 đầu nhọn và các vai đều mềm mại.
-class _PointedBannerPainter extends CustomPainter {
-  const _PointedBannerPainter({required this.point});
-
-  final double point;
-
-  /// Bán kính bo: ở vai (mép phẳng) và ở 2 đầu nhọn (bo nhiều hơn cho mềm).
-  static const double _shoulderR = 11;
-  static const double _tipR = 17;
-
-  /// Dựng đường viền lục giác đã bo cong tại từng đỉnh.
-  static Path _framePath(Rect r, double pt, double sr, double tr) {
-    final midY = r.center.dy;
-    final pts = <Offset>[
-      Offset(r.left + pt, r.top), // vai trên-trái
-      Offset(r.right - pt, r.top), // vai trên-phải
-      Offset(r.right, midY), // đầu nhọn phải
-      Offset(r.right - pt, r.bottom), // vai dưới-phải
-      Offset(r.left + pt, r.bottom), // vai dưới-trái
-      Offset(r.left, midY), // đầu nhọn trái
-    ];
-    final radii = <double>[sr, sr, tr, sr, sr, tr];
-
-    final path = Path();
-    final n = pts.length;
-    for (var i = 0; i < n; i++) {
-      final cur = pts[i];
-      final prev = pts[(i - 1 + n) % n];
-      final next = pts[(i + 1) % n];
-      final toPrev = prev - cur;
-      final toNext = next - cur;
-      final rA = math.min(radii[i], toPrev.distance / 2);
-      final rB = math.min(radii[i], toNext.distance / 2);
-      final a = cur + toPrev / toPrev.distance * rA;
-      final b = cur + toNext / toNext.distance * rB;
-      if (i == 0) {
-        path.moveTo(a.dx, a.dy);
-      } else {
-        path.lineTo(a.dx, a.dy);
-      }
-      path.quadraticBezierTo(cur.dx, cur.dy, b.dx, b.dy);
-    }
-    return path..close();
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final outer = _framePath(rect.deflate(2.5), point, _shoulderR, _tipR);
-
-    // Bóng đổ nhẹ dưới khuôn.
-    canvas.drawShadow(outer, Colors.black54, 4, false);
-
-    // Nền xanh gradient.
-    canvas.drawPath(
-      outer,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF3E74E8), Color(0xFF1C40A6)],
-        ).createShader(rect),
-    );
-
-    // Viền vàng ngoài (dày).
-    canvas.drawPath(
-      outer,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeJoin = StrokeJoin.round
-        ..color = _TitleBanner._gold,
-    );
-
-    // Đường vàng sáng bên trong (viền kép).
-    canvas.drawPath(
-      _framePath(rect.deflate(8), point - 3.5, _shoulderR - 3, _tipR - 4),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeJoin = StrokeJoin.round
-        ..color = _TitleBanner._goldLight,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PointedBannerPainter oldDelegate) =>
-      oldDelegate.point != point;
-}
-
-class _BannerDiamond extends StatelessWidget {
-  const _BannerDiamond();
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: math.pi / 4,
-      child: Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          color: _TitleBanner._goldLight,
-          border: Border.all(color: _TitleBanner._goldDark, width: 1.5),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
         ),
       ),
     );
