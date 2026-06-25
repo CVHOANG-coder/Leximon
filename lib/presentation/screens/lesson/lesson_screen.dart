@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../core/tts/tts_service.dart';
@@ -29,13 +30,6 @@ const _kGreen = Color(0xFF3CB54A);
 const _kRed = Color(0xFFE53935);
 const _kBlue = Color(0xFF2196F3);
 const _kGold = Color(0xFFF5B91E);
-
-const _kOptionBadgeColors = [
-  Color(0xFF3CB54A), // green
-  Color(0xFF2196F3), // blue
-  Color(0xFFF5A623), // orange
-  Color(0xFF9C27B0), // purple
-];
 
 /// Thời lượng một lượt enemy phản công (lottie `mini2_attack.json`). Dùng
 /// chung để canh việc chuyển câu khi trả lời sai sao cho không cắt ngang
@@ -157,6 +151,7 @@ class _LessonScreenState extends State<LessonScreen> {
   int _qIdx = 0;
   int _score = 0;
   int? _selectedIdx;
+  bool _choiceChecked = false;
   final Set<int> _hiddenOptions = {};
 
   // Trạng thái dạng sắp xếp (anagram / sentenceOrder):
@@ -202,15 +197,14 @@ class _LessonScreenState extends State<LessonScreen> {
   /// kèm hiệu ứng sấm chớp toàn màn hình.
   int _attackTick = 0;
 
-  bool get _answered => _selectedIdx != null || _arrangeChecked;
+  bool get _answered => _choiceChecked || _arrangeChecked;
   _Question get _question => _questions[_qIdx];
 
-  /// Số từ đã học = tổng từ của các chặng "Học" đã hoàn thành.
-  int get _learnedWords => [
-    for (var i = 0; i < _stages.length; i++)
-      if (_completedStages.contains(i) && _stages[i].kind == _StageKind.learn)
-        _stages[i].wordCount,
-  ].fold(0, (a, b) => a + b);
+  bool get _canCheck =>
+      !_answered &&
+      (_question.isChoice
+          ? _selectedIdx != null
+          : _placed.length == _question.answerTokens.length);
 
   @override
   void initState() {
@@ -559,6 +553,7 @@ class _LessonScreenState extends State<LessonScreen> {
       _qIdx = 0;
       _score = 0;
       _selectedIdx = null;
+      _choiceChecked = false;
       _hiddenOptions.clear();
       _placed.clear();
       _arrangeChecked = false;
@@ -651,9 +646,15 @@ class _LessonScreenState extends State<LessonScreen> {
 
   void _onSelect(int idx) {
     if (_answered || _hiddenOptions.contains(idx)) return;
-    final correct = idx == _question.correctIdx;
+    setState(() => _selectedIdx = idx);
+  }
+
+  void _checkChoice() {
+    final selectedIdx = _selectedIdx;
+    if (_answered || selectedIdx == null) return;
+    final correct = selectedIdx == _question.correctIdx;
     setState(() {
-      _selectedIdx = idx;
+      _choiceChecked = true;
       if (correct) {
         _score++;
         _registerHit(_question.kind);
@@ -667,11 +668,6 @@ class _LessonScreenState extends State<LessonScreen> {
       word: _question.word.word,
       correct: correct,
     );
-    // Sai → chờ enemy đánh trả xong (lottie attack) rồi mới sang câu mới.
-    Future.delayed(
-      Duration(milliseconds: correct ? 1000 : _kEnemyAttackMs + 250),
-      _next,
-    );
   }
 
   // ── Dạng sắp xếp: đặt / gỡ thẻ ────────────────────────────────────────────
@@ -679,7 +675,6 @@ class _LessonScreenState extends State<LessonScreen> {
   void _onTokenTap(int tokenIdx) {
     if (_answered || _placed.contains(tokenIdx)) return;
     setState(() => _placed.add(tokenIdx));
-    if (_placed.length == _question.answerTokens.length) _checkArrange();
   }
 
   void _onSlotTap(int slotIdx) {
@@ -688,6 +683,7 @@ class _LessonScreenState extends State<LessonScreen> {
   }
 
   void _checkArrange() {
+    if (_answered || _placed.length != _question.answerTokens.length) return;
     final q = _question;
     var correct = true;
     for (var i = 0; i < q.answerTokens.length; i++) {
@@ -711,11 +707,15 @@ class _LessonScreenState extends State<LessonScreen> {
       word: q.word.word,
       correct: correct,
     );
-    // Sai → chờ enemy đánh trả xong (lottie attack) rồi mới sang câu mới.
-    Future.delayed(
-      Duration(milliseconds: correct ? 1300 : _kEnemyAttackMs + 250),
-      _next,
-    );
+  }
+
+  void _onCheckPressed() {
+    if (!_canCheck) return;
+    if (_question.isChoice) {
+      _checkChoice();
+    } else {
+      _checkArrange();
+    }
   }
 
   void _next() {
@@ -727,6 +727,7 @@ class _LessonScreenState extends State<LessonScreen> {
     setState(() {
       _qIdx++;
       _selectedIdx = null;
+      _choiceChecked = false;
       _hiddenOptions.clear();
       _placed.clear();
       _arrangeChecked = false;
@@ -910,6 +911,7 @@ class _LessonScreenState extends State<LessonScreen> {
         children: [
           _background(
             SafeArea(
+              bottom: false,
               child: _loading
                   ? const Center(
                       child: CircularProgressIndicator(color: Colors.white),
@@ -938,7 +940,7 @@ class _LessonScreenState extends State<LessonScreen> {
                             ),
                           ),
                         ),
-                        _buildTopicProgress(),
+                        _buildCheckArea(),
                       ],
                     ),
             ),
@@ -975,7 +977,7 @@ class _LessonScreenState extends State<LessonScreen> {
     );
   }
 
-  /// Hộp tiến độ gọn: "Câu x/y" phía trên thanh tiến độ, huy hiệu sao bên phải.
+  /// Tiến độ câu hỏi của chặng hiện tại, luôn hiển thị ở header màn lesson.
   Widget _buildQuestionProgress() {
     final progress = (_qIdx + (_answered ? 1 : 0)) / _questions.length;
     return Container(
@@ -1050,6 +1052,95 @@ class _LessonScreenState extends State<LessonScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCheckArea() {
+    final showContinue = _answered;
+    final enabled = showContinue || _canCheck;
+    final buttonAsset = showContinue
+        ? 'assets/images/lesson/button_continue.png'
+        : 'assets/images/lesson/button_test.png';
+    return AspectRatio(
+      aspectRatio: 1969 / 533,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/lesson/container_button.png',
+            fit: BoxFit.fill,
+          ),
+          Center(
+            child: FractionallySizedBox(
+              widthFactor: 0.85,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 360),
+                reverseDuration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeOutBack,
+                switchOutCurve: Curves.easeInCubic,
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.center,
+                  children: [...previousChildren, ?currentChild],
+                ),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(
+                      begin: 0.84,
+                      end: 1,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: AspectRatio(
+                  key: ValueKey(showContinue),
+                  aspectRatio: showContinue ? 2200 / 435 : 2150 / 389,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 180),
+                    opacity: enabled ? 1 : 0.55,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: enabled
+                          ? (showContinue ? _next : _onCheckPressed)
+                          : null,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(buttonAsset, fit: BoxFit.fill),
+                          Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                showContinue ? 'TIẾP TỤC' : 'KIỂM TRA',
+                                style: GoogleFonts.baloo2(
+                                  color: Colors.white,
+                                  fontSize: showContinue ? 20 : 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                  height: 1,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                      blurRadius: 2,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1538,12 +1629,17 @@ class _LessonScreenState extends State<LessonScreen> {
 
     Color bg = _kCream;
     Color border = _kBorder;
+    Color foreground = _kInk;
     if (_answered && isCorrect) {
-      bg = const Color(0xFFE4F6E0);
-      border = _kGreen;
+      bg = const Color(0xFF35A944);
+      border = const Color(0xFF237D31);
+      foreground = Colors.white;
     } else if (_answered && isSelected && !isCorrect) {
       bg = const Color(0xFFFBE2E0);
       border = _kRed;
+    } else if (isSelected) {
+      bg = const Color(0xFFE8F3FF);
+      border = _kBlue;
     }
 
     return AnimatedOpacity(
@@ -1552,15 +1648,17 @@ class _LessonScreenState extends State<LessonScreen> {
       child: GestureDetector(
         onTap: () => _onSelect(idx),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Container(
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 50),
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               decoration: BoxDecoration(
                 color: bg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border, width: 2.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: border, width: 2),
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
@@ -1569,59 +1667,44 @@ class _LessonScreenState extends State<LessonScreen> {
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 26,
-                    height: 26,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          _kOptionBadgeColors[idx % _kOptionBadgeColors.length],
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 3,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '${idx + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      _question.options[idx],
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _kInk,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
+              child: Text(
+                _question.options[idx],
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
               ),
             ),
-            // Dấu đúng/sai ở góc phải ô.
+            // Dấu đúng/sai nổi ở góc phải, thay cho badge số 1–4.
             if (_answered && (isCorrect || (isSelected && !isCorrect)))
               Positioned(
-                top: 3,
-                right: 5,
-                child: Icon(
-                  isCorrect ? Icons.check_circle : Icons.cancel,
-                  size: 18,
-                  color: isCorrect ? _kGreen : _kRed,
+                top: -7,
+                right: -5,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCorrect ? _kGreen : _kRed,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
@@ -1646,73 +1729,6 @@ class _LessonScreenState extends State<LessonScreen> {
           isFirst: i == 0,
           isLast: i == _stages.length - 1,
           onTap: () => _onStageTap(i),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopicProgress() {
-    final total = _allWords.length;
-    final learned = _learnedWords;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: _kCream,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _kBorder, width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Image.asset(
-              'assets/images/eggs/scholar_egg.png',
-              width: 44,
-              height: 44,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                children: [
-                  Text.rich(
-                    TextSpan(
-                      style: const TextStyle(
-                        color: _kInk,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Tiến độ chủ đề '),
-                        TextSpan(
-                          text: '$learned/$total',
-                          style: const TextStyle(color: _kBlue),
-                        ),
-                        const TextSpan(text: ' từ'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  _ProgressBar(
-                    progress: total == 0 ? 0 : learned / total,
-                    height: 12,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Image.asset(
-              'assets/images/task/chess_stage.png',
-              width: 46,
-              height: 46,
-            ),
-          ],
         ),
       ),
     );
@@ -3238,6 +3254,7 @@ class _SentenceLine extends StatelessWidget {
 
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.progress, this.height = 10});
+
   final double progress;
   final double height;
 
@@ -3245,8 +3262,6 @@ class _ProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: height,
-      // Nền (track) luôn chiếm hết bề rộng — kể cả khi tiến độ 0%,
-      // tránh thanh co lại thành một vạch.
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFD8CBA8),

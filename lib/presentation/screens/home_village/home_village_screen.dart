@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../../core/lottie/dotlottie_decoder.dart';
+import '../../../data/repositories/progress_repository.dart';
+import '../../widgets/island_topic_progress_bar.dart';
 
 enum CheckpointState { complete, current, uncheck }
 
@@ -189,6 +191,7 @@ class _HomeVillageScreenState extends State<HomeVillageScreen>
       duration: const Duration(milliseconds: 2000),
       value: 1.0,
     );
+    _loadProgress();
     _loadRoadTexture();
 
     // Start scrolled to the bottom so checkpoint 0 (the current one) is visible;
@@ -219,11 +222,45 @@ class _HomeVillageScreenState extends State<HomeVillageScreen>
   int get _currentIdx =>
       _checkpoints.indexWhere((c) => c.state == CheckpointState.current);
 
-  void _onCheckpointTap(int tappedIdx) {
+  CheckpointModel get _activeCheckpoint {
+    final index = _currentIdx;
+    return _checkpoints[index < 0 ? _checkpoints.length - 1 : index];
+  }
+
+  Future<void> _loadProgress() async {
+    final counts = await Future.wait([
+      for (final checkpoint in _checkpoints)
+        ProgressRepository.instance.learnedWordCount(
+          topicId: checkpoint.topicId,
+        ),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      for (var i = 0; i < _checkpoints.length; i++) {
+        _checkpoints[i].learnedCount = counts[i].clamp(
+          0,
+          _checkpoints[i].wordCount,
+        );
+      }
+      final current = _checkpoints.indexWhere(
+        (checkpoint) => checkpoint.learnedCount < checkpoint.wordCount,
+      );
+      for (var i = 0; i < _checkpoints.length; i++) {
+        _checkpoints[i].state = current < 0 || i < current
+            ? CheckpointState.complete
+            : i == current
+            ? CheckpointState.current
+            : CheckpointState.uncheck;
+      }
+    });
+  }
+
+  Future<void> _onCheckpointTap(int tappedIdx) async {
     final tapped = _checkpoints[tappedIdx];
     // Đã mở (đang học hoặc đã xong) → vào màn học từ vựng.
     if (tapped.state != CheckpointState.uncheck) {
-      context.push('/lesson/${tapped.topicId}?islandId=home');
+      await context.push('/lesson/${tapped.topicId}?islandId=home');
+      await _loadProgress();
       return;
     }
 
@@ -453,6 +490,18 @@ class _HomeVillageScreenState extends State<HomeVillageScreen>
                         child: const Icon(Icons.arrow_back, size: 22),
                       ),
                     ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: IslandTopicProgressBar(
+                    learnedWords: _activeCheckpoint.learnedCount,
+                    totalWords: _activeCheckpoint.wordCount,
                   ),
                 ),
               ),
