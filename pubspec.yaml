@@ -2,7 +2,7 @@ name: leximon
 description: "Leximon - Learn English & collect mystical creatures across islands."
 publish_to: "none"
 
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
     sdk: ^3.11.5

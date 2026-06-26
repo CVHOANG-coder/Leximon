@@ -44,8 +44,9 @@ class IslandNodeComponent extends SpriteComponent {
         text: data.name,
         // Sprite has transparent padding at the bottom, so pull the label
         // up above size.y to sit close to the visible island edge.
-        labelPosition: Vector2(size.x / 2, size.y - 24),
+        labelPosition: Vector2(size.x / 2, size.y - 28),
         isCurrent: isCurrent,
+        isUnlocked: data.unlocked,
       ),
     );
   }
@@ -121,57 +122,89 @@ class IslandNodeComponent extends SpriteComponent {
       (point - position).length < (_nodeSize * 0.55);
 }
 
-class _IslandLabel extends TextComponent {
+class _IslandLabel extends PositionComponent {
   _IslandLabel({
     required String text,
     required Vector2 labelPosition,
     required this.isCurrent,
-  }) : super(
-         text: text,
+    required this.isUnlocked,
+  }) : _text = text,
+       super(
          anchor: Anchor.topCenter,
          position: labelPosition,
-         textRenderer: TextPaint(
-           style: TextStyle(
-             color: Colors.white,
-             fontSize: isCurrent ? 15 : 13,
-             fontWeight: FontWeight.w800,
-             letterSpacing: 0.5,
-             shadows: const [
-               Shadow(
-                 color: Color(0xCC000000),
-                 blurRadius: 8,
-                 offset: Offset(0, 2),
-               ),
-               Shadow(color: Color(0x88000000), blurRadius: 16),
-             ],
-           ),
-         ),
+         size: Vector2(_labelWidth, _labelHeight),
        );
 
   final bool isCurrent;
+  final bool isUnlocked;
+  final String _text;
   double _t = 0;
+
+  static const _labelWidth = 218.0;
+  static const _labelHeight = 49.0;
+
+  late final TextComponent _textComponent;
+
+  @override
+  Future<void> onLoad() async {
+    final frame = SpriteComponent(
+      sprite: await Sprite.load('homeScreen/container_title_island.png'),
+      anchor: Anchor.center,
+      position: size / 2,
+      size: size,
+    );
+
+    _textComponent = TextComponent(
+      text: _text,
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y * 0.48),
+      textRenderer: _textPaint(1),
+    );
+
+    await add(frame);
+    await add(_textComponent);
+  }
 
   @override
   void update(double dt) {
     _t += dt;
     if (isCurrent) {
       final alpha = (0.75 + 0.25 * math.sin(_t * 2.5)).clamp(0.0, 1.0);
-      textRenderer = TextPaint(
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: alpha),
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.5,
-          shadows: const [
-            Shadow(
-              color: Color(0xCC000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-            Shadow(color: Color(0x88000000), blurRadius: 16),
-          ],
-        ),
-      );
+      _textComponent.textRenderer = _textPaint(alpha);
     }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!isUnlocked) {
+      canvas.saveLayer(
+        null,
+        Paint()..color = Colors.white.withValues(alpha: 0.45),
+      );
+      super.render(canvas);
+      canvas.restore();
+      return;
+    }
+
+    super.render(canvas);
+  }
+
+  TextPaint _textPaint(double alpha) => TextPaint(
+    style: TextStyle(
+      color: Colors.white.withValues(alpha: alpha),
+      fontSize: _fontSize,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      shadows: const [
+        Shadow(color: Color(0xDD123B82), blurRadius: 0, offset: Offset(0, 2)),
+        Shadow(color: Color(0x99000000), blurRadius: 5, offset: Offset(0, 2)),
+      ],
+    ),
+  );
+
+  double get _fontSize {
+    if (_text.length > 18) return 14;
+    if (_text.length > 15) return 16;
+    return isCurrent ? 20 : 19;
   }
 }

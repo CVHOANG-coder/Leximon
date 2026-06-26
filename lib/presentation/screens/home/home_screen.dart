@@ -124,42 +124,36 @@ class _TopHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Flexible(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  onTap: onProfileTap,
-                  child: _PlayerProgressHud(
-                    profile: profile,
-                    xpToNextLevel: xpToNextLevel,
-                  ),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topLeft,
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: onProfileTap,
+                child: _PlayerProgressHud(
+                  profile: profile,
+                  xpToNextLevel: xpToNextLevel,
                 ),
               ),
-            ),
+              const SizedBox(width: 18),
+              _CurrencyChip(
+                asset: 'assets/images/coin.png',
+                value: '${profile?.coins ?? 0}',
+                iconSize: 58,
+              ),
+              const SizedBox(width: 14),
+              _CurrencyChip(
+                asset: 'assets/images/food.png',
+                value: '${profile?.food ?? 0}',
+                iconSize: 58,
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-
-          // Coins
-          _CurrencyChip(
-            asset: 'assets/images/coin.png',
-            value: '${profile?.coins ?? 0}',
-            // Ảnh coin có nhiều khoảng trong suốt nên cần lớn hơn cho cân.
-            iconSize: 34,
-          ),
-          const SizedBox(width: 6),
-          // Food
-          _CurrencyChip(
-            asset: 'assets/images/food.png',
-            value: '${profile?.food ?? 0}',
-            iconSize: 36,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -190,78 +184,116 @@ class _PlayerProgressHud extends StatelessWidget {
         : '${requiredXp == null ? 0 : currentXp} / ${requiredXp ?? 0}';
 
     return SizedBox(
-      width: 232,
-      height: 66,
+      width: 304,
+      height: 86,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Positioned(
-            left: 4,
-            top: 0,
-            child: Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF143151),
-                border: Border.all(color: const Color(0xFF9B7A27), width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black54,
-                    blurRadius: 5,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(3),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/profileInfo/avatar_default.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
-                      const Icon(Icons.person, color: Colors.white, size: 34),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 58,
+            left: 1,
             top: 2,
             child: Container(
-              height: 19,
-              constraints: const BoxConstraints(minWidth: 54),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              alignment: Alignment.center,
+              width: 82,
+              height: 82,
               decoration: BoxDecoration(
-                color: const Color(0xFF061629).withValues(alpha: 0.82),
-                borderRadius: BorderRadius.circular(12),
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFF6A3), Color(0xFFFFB725)],
+                ),
+                border: Border.all(color: Colors.white, width: 2),
                 boxShadow: const [
                   BoxShadow(
-                    color: Colors.black38,
-                    blurRadius: 3,
-                    offset: Offset(0, 1),
+                    color: Color(0x88000000),
+                    blurRadius: 7,
+                    offset: Offset(0, 3),
                   ),
                 ],
               ),
-              child: const Text(
-                'Lexi',
-                maxLines: 1,
-                style: TextStyle(
-                  color: Color(0xFFC5DAF2),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
+              padding: const EdgeInsets.all(5),
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF086CC2),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/profileInfo/avatar_default.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 38,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
+          const Positioned(left: 77, top: 12, child: _NamePlate(name: 'Lexi')),
           Positioned(
-            left: 66,
-            top: 28,
+            left: 86,
+            top: 46,
             child: _XpBar(progress: progress, text: xpText),
           ),
-          Positioned(left: 48, top: 15, child: _HomeLevelBadge(level: level)),
+          Positioned(left: 64, top: 30, child: _HomeLevelBadge(level: level)),
         ],
+      ),
+    );
+  }
+}
+
+class _NamePlate extends StatelessWidget {
+  const _NamePlate({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 88,
+      height: 31,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF287FE3), Color(0xFF0B4FB3)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF83C7FF), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x88000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Color(0x6636A9FF),
+            blurRadius: 6,
+            offset: Offset(0, -1),
+          ),
+        ],
+      ),
+      child: Text(
+        name,
+        maxLines: 1,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          height: 1,
+          shadows: [
+            Shadow(
+              color: Color(0xAA09256A),
+              blurRadius: 2,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -275,15 +307,15 @@ class _HomeLevelBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 46,
-      height: 46,
+      width: 64,
+      height: 64,
       child: Stack(
         alignment: Alignment.center,
         children: [
           Image.asset(
             'assets/images/profileInfo/star_level.png',
-            width: 46,
-            height: 46,
+            width: 64,
+            height: 64,
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
@@ -291,7 +323,7 @@ class _HomeLevelBadge extends StatelessWidget {
             '$level',
             style: const TextStyle(
               color: Color(0xFFFFD24A),
-              fontSize: 15,
+              fontSize: 23,
               fontWeight: FontWeight.w900,
               height: 1,
               shadows: [
@@ -318,15 +350,19 @@ class _XpBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 164,
-      height: 24,
-      padding: const EdgeInsets.all(3),
+      width: 216,
+      height: 36,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFF04101C).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.45)),
+        color: const Color(0xFF17355A),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFD34C), width: 4),
         boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(
+            color: Color(0x77000000),
+            blurRadius: 5,
+            offset: Offset(0, 3),
+          ),
         ],
       ),
       child: Stack(
@@ -343,7 +379,7 @@ class _XpBar extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Color(0xFF9E8618), Color(0xFF5F520A)],
+                      colors: [Color(0xFF95F53C), Color(0xFF34B915)],
                     ),
                   ),
                 ),
@@ -354,8 +390,8 @@ class _XpBar extends StatelessWidget {
             text,
             maxLines: 1,
             style: const TextStyle(
-              color: Color(0xFFD7D3C8),
-              fontSize: 12,
+              color: Colors.white,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
               height: 1,
               shadows: [
@@ -388,79 +424,83 @@ class _CurrencyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      width: 142,
+      height: 58,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Thân pill — chừa chỗ bên trái cho icon nhô ra; số và nút "+"
-          // nằm inline cùng một hàng.
-          Container(
-            height: 32,
-            margin: const EdgeInsets.only(left: 18),
-            padding: const EdgeInsets.fromLTRB(22, 0, 4, 0),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF12325C).withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.5),
-                width: 1.5,
+          Positioned(
+            left: 23,
+            right: 0,
+            top: 11,
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.fromLTRB(38, 0, 38, 0),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 5,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                value,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: Color(0xFF17356D),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 22,
+                  height: 1,
+                ),
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black45,
-                        blurRadius: 2,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
+          ),
+          Positioned(
+            right: 0,
+            top: 8,
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF78E755), Color(0xFF27A826)],
                 ),
-                const SizedBox(width: 6),
-                // Nút "+" tròn xanh lá — cùng hàng với số.
-                Container(
-                  width: 24,
-                  height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF5CD65C), Color(0xFF2EA82E)],
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 3,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x55000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    color: Colors.white,
-                    size: 17,
-                  ),
-                ),
-              ],
+                ],
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 34,
+                weight: 900,
+              ),
             ),
           ),
-          // Icon tiền tệ nhô ra bên trái, căn giữa theo chiều dọc với pill.
           Positioned(
             left: 0,
-            child: Image.asset(asset, width: iconSize, height: iconSize),
+            top: 0,
+            child: Image.asset(
+              asset,
+              width: iconSize,
+              height: iconSize,
+              fit: BoxFit.contain,
+            ),
           ),
         ],
       ),
